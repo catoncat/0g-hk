@@ -1,12 +1,12 @@
-// n.chen.rs — 临时笔记 + 302 短链
-// GET /                          -> 编辑器
-// GET /?c=...&n=...               -> 创建（n 可选，同名不覆盖）
-// GET <name>.n.chen.rs            -> 302 或笔记页
-// GET <name>.n.chen.rs/raw        -> 原文
+// 0g.hk — 临时笔记 + 302 短链
+// GET /                     -> 编辑器
+// GET /?c=...&n=...          -> 创建（n 可选，同名不覆盖）
+// GET <name>.0g.hk           -> 302 或笔记页
+// GET <name>.0g.hk/raw       -> 原文
 
 const BASE_HOST = "0g.hk";
 const RESERVED = new Set(["www", "api", "new", "admin", "edit", "raw", "n", "app"]);
-const NAME_RE = /^[a-z0-9-]{2,32}$/;
+const NAME_RE = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 const TEXT_MAX = 8 * 1024;
 const URL_MAX = 2 * 1024;
 const RATE_LIMIT = 10; // 每 IP 每分钟
@@ -32,8 +32,9 @@ async function rateLimit(env, ip) {
   const key = "rl:" + ip + ":" + Math.floor(Date.now() / 60000);
   const v = await env.NOTES.get(key);
   const n = v ? parseInt(v, 10) + 1 : 1;
-  await env.NOTES.put(key, String(n), { expirationTtl: 120 });
-  return n <= RATE_LIMIT;
+  if (n > RATE_LIMIT) return false;
+  await env.NOTES.put(key, String(n), { expirationTtl: 70 });
+  return true;
 }
 
 function html(body, status = 200) {
@@ -42,7 +43,7 @@ function html(body, status = 200) {
 
 function editorPage() {
   const body = '<!DOCTYPE html>\n' +
-'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>n.chen.rs — 临时笔记 / 短链</title>\n' +
+'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + BASE_HOST + ' — 临时笔记 / 短链</title>\n' +
 '<style>\n' +
 ':root{color-scheme:light dark}\n' +
 '*{box-sizing:border-box;margin:0}\n' +
@@ -65,7 +66,7 @@ function editorPage() {
 '<div class="hint">贴一段文字 → 笔记页<br>贴一个 <code>http(s)://</code> 链接 → 302 短链<br>同名不覆盖。也可直接拼：<code>/?c=内容&amp;n=名字</code></div>\n' +
 '<form onsubmit="return go(event)">\n' +
 '<label>自定义名字（可选，留空随机 6 位）</label>\n' +
-'<div class="row"><input id="n" autocomplete="off" pattern="[a-z0-9-]{2,32}" placeholder="例如 abc"><span class="suffix">.n.chen.rs</span></div>\n' +
+'<div class="row"><input id="n" autocomplete="off" pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="例如 abc"><span class="suffix">.' + BASE_HOST + '</span></div>\n' +
 '<label>内容</label>\n' +
 '<textarea id="c" required autofocus placeholder="文字 / https://..."></textarea>\n' +
 '<button type="submit">生成 →</button>\n' +
@@ -114,7 +115,7 @@ function resultPage(name, content, existed) {
 
 function notePage(sub, content) {
   const body = '<!DOCTYPE html>\n' +
-'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · n.chen.rs</title>\n' +
+'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · ' + BASE_HOST + '</title>\n' +
 '<style>:root{color-scheme:light dark}*{box-sizing:border-box;margin:0}\n' +
 'body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:2rem;max-width:760px;margin:0 auto;line-height:1.6;background:#fafafa;color:#111}\n' +
 '@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#eee}pre{background:#161616;border-color:#333}header{border-color:#333}}\n' +
@@ -138,9 +139,6 @@ function notFoundPage(sub) {
 }
 
 async function handleCreate(req, env, url) {
-  const ip = req.headers.get("cf-connecting-ip") || "0";
-  if (!(await rateLimit(env, ip))) return new Response("Rate limit exceeded (10/min)", { status: 429 });
-
   let name = (url.searchParams.get("n") || "").toLowerCase().trim();
   const content = url.searchParams.get("c") || "";
   if (!content) return editorPage();
@@ -150,9 +148,14 @@ async function handleCreate(req, env, url) {
   if (!urlMode && content.length > TEXT_MAX) return new Response("Text too long", { status: 413 });
 
   if (name) {
-    if (!NAME_RE.test(name)) return new Response("Invalid name (need [a-z0-9-]{2,32})", { status: 400 });
+    if (!NAME_RE.test(name)) return new Response("Invalid name (need [a-z0-9-]{2,32}, alnum ends)", { status: 400 });
     if (RESERVED.has(name)) return new Response("Reserved name", { status: 400 });
-  } else {
+  }
+
+  const ip = req.headers.get("cf-connecting-ip") || "0";
+  if (!(await rateLimit(env, ip))) return new Response("Rate limit exceeded (10/min)", { status: 429 });
+
+  if (!name) {
     for (let i = 0; i < 6; i++) {
       const cand = randomName(6);
       if (RESERVED.has(cand)) continue;
@@ -171,13 +174,26 @@ async function handleCreate(req, env, url) {
 
 async function handleSubdomain(env, host, pathname) {
   const sub = host.slice(0, -(BASE_HOST.length + 1));
-  if (!NAME_RE.test(sub)) return notFoundPage(sub);
+  if (!NAME_RE.test(sub) || RESERVED.has(sub)) return notFoundPage(sub);
   const content = await env.NOTES.get("n:" + sub);
   if (content === null) return notFoundPage(sub);
   if (pathname === "/raw") {
-    return new Response(content, { headers: { "content-type": "text/plain;charset=utf-8" } });
+    return new Response(content, {
+      headers: {
+        "content-type": "text/plain;charset=utf-8",
+        "access-control-allow-origin": "*",
+        "cache-control": "public, max-age=60",
+      },
+    });
   }
-  if (isUrl(content)) return Response.redirect(content.trim(), 302);
+  if (isUrl(content)) {
+    try {
+      const target = new URL(content.trim()).toString();
+      return Response.redirect(target, 302);
+    } catch {
+      return notePage(sub, content);
+    }
+  }
   return notePage(sub, content);
 }
 

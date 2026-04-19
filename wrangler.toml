@@ -1,0 +1,18 @@
+name = "n-chen-rs"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+account_id = "6087736750ab274809ddad92ed5e3ac6"
+workers_dev = false
+
+[[kv_namespaces]]
+binding = "NOTES"
+id = "5abeab410f7841eeb5b06942a3cfa42b"
+
+[[routes]]
+pattern = "0g.hk"
+zone_name = "0g.hk"
+custom_domain = true
+
+[[routes]]
+pattern = "*.0g.hk/*"
+zone_name = "0g.hk"

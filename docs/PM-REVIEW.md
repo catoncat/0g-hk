@@ -118,6 +118,7 @@ https://<名字>.0g.hk/raw            ← 原文
 - [ ] 阅后即焚 `&burn=1`
 - [ ] `/stats` 查看命中次数
 - [ ] Markdown 可选渲染
+- [ ] 中文子域名支持（IDN / Punycode），配套 Homograph 防护：只允许汉字 + 数字 + `-`，或单一 Unicode 脚本
 
 ### P2（追增长）
 

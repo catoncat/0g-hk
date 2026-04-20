@@ -81,7 +81,7 @@ export function editorPage(opts) {
 '<div class="wrap">\n' +
 '<div class="card">\n' +
 '<div class="brand">0g<span class="dot">.</span>hk</div>\n' +
-'<div class="tagline">把文字或链接，变成你的 <span class="kw">talk<span class="dot">.</span>0g<span class="dot">.</span>hk</span></div>\n' +
+'<div class="tagline">把想说的，一秒变成一条链接。</div>\n' +
 (alertTop ? '<div class="alert-warn">' + alertTop + '</div>\n' : '') +
 '<form onsubmit="return go(event)">\n' +
 '<label for="c" class="sr">内容</label>' +

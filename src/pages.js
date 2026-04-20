@@ -2,7 +2,7 @@
 // Extracted verbatim from src/index.js.
 import { BASE_HOST, TTL_OPTIONS, DEFAULT_TTL, ABUSE_EMAIL } from "./constants.js";
 import { esc, shortUrlFor, isUrl, parseUrlSafe } from "./util.js";
-import { COMMON_CSS, THEME_CSS, PROMO_CSS, NOTE_PROMO_CSS, html, footerHtml, promoCardHtml } from "./responses.js";
+import { COMMON_CSS, html, footerHtml, headerHtml, promoCardHtml } from "./responses.js";
 
 export function editorPage(opts) {
   opts = opts || {};
@@ -196,13 +196,16 @@ export function resultPage(name, content, mode, ttlKey, editToken) {
 '.qr{margin:1.25rem auto 0;width:fit-content;padding:8px;border-radius:10px;background:#fff;border:1px solid var(--border)}\n' +
 '.qr img{display:block;width:120px;height:120px}\n' +
 '</style></head><body>\n' +
-'<div class="wrap"><div class="card">\n' +
+'<div class="wrap">\n' +
+headerHtml() + '\n' +
+'<div class="card">\n' +
 '<h1><span class="dot"></span>' + header + '<span class="type ' + typeClass + '">' + typeLabel + '</span></h1>\n' +
 '<div class="url primary-url"><input id="u" value="' + esc(short) + '" readonly onclick="this.select()"><button onclick="copyShort(this)">复制</button></div>\n' +
  whitelistBlock + editBlock + metaHtml + '\n' +
 '<div class="qr"><img alt="QR" src="' + esc(qrSrc) + '" width="120" height="120" loading="lazy"></div>\n' +
- footerHtml() + '\n' +
-'</div></div>\n' +
+'</div>\n' +
+footerHtml() + '\n' +
+'</div>\n' +
 '<script>function copyShort(b){navigator.clipboard.writeText(document.getElementById("u").value).then(function(){b.textContent="已复制";setTimeout(function(){b.textContent="复制"},1500)})}function copyEdit(b){navigator.clipboard.writeText(document.getElementById("eu").value).then(function(){b.textContent="已复制";setTimeout(function(){b.textContent="复制"},1500)})}</script>\n' +
 '</body></html>';
   return html(body);
@@ -210,28 +213,23 @@ export function resultPage(name, content, mode, ttlKey, editToken) {
 
 export function notePage(sub, content) {
   const isShort = content.length <= 40 && !/\n/.test(content);
-  const preOpen = isShort ? '<pre id="c" class="big">' : '<pre id="c">';
+  const preClass = isShort ? 'note-pre big' : 'note-pre';
+  const segRight =
+    '<div class="seg"><button type="button" onclick="navigator.clipboard.writeText(document.getElementById(\'c\').innerText).then(function(){var b=event.currentTarget;b.textContent=\'已复制\';setTimeout(function(){b.textContent=\'复制\'},1200)})">复制</button>' +
+    '<a href="/raw">原文</a></div>';
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · ' + BASE_HOST + '</title>\n' +
 '<meta name="robots" content="noindex">\n' +
-'<style>' + THEME_CSS + '*{box-sizing:border-box;margin:0;padding:0}html{-webkit-text-size-adjust:100%}\n' +
-'body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:16px;padding:clamp(1rem,4vw,2rem) clamp(.85rem,4vw,2rem);padding-bottom:max(clamp(1rem,4vw,2rem),env(safe-area-inset-bottom));max-width:760px;margin:0 auto;line-height:1.6;background:var(--bg);color:var(--text)}\n' +
-'header{display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding-bottom:.85rem;margin-bottom:1.25rem;border-bottom:1px solid var(--border)}\n' +
-'.logo{font-family:var(--mono);font-size:1.1rem;font-weight:700;letter-spacing:-.02em;color:var(--text);text-decoration:none;line-height:1;flex:0 0 auto}\n' +
-'.logo .dot{color:#10b981}\n' +
-'.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:6px;overflow:hidden;flex:0 0 auto}\n' +
-'.seg>*{padding:.5rem .85rem;min-height:36px;background:transparent;cursor:pointer;font-size:.82rem;color:inherit;font-family:inherit;border:0;text-decoration:none;display:inline-flex;align-items:center;-webkit-tap-highlight-color:transparent}\n' +
-'.seg>*+*{border-left:1px solid var(--border-strong)}\n' +
-'@media(hover:hover){.seg>*:hover{background:rgba(128,128,128,.12)}}\n' +
-'pre{white-space:pre-wrap;word-wrap:break-word;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:clamp(1rem,3vw,1.25rem);font-family:var(--mono);font-size:.95rem;line-height:1.6;color:var(--text)}\n' +
-'pre.big{font-size:clamp(1.3rem,4vw,1.8rem);line-height:1.45;text-align:center;padding:clamp(1.5rem,5vw,2.25rem) clamp(1rem,3vw,1.25rem);font-weight:500}\n' +
-NOTE_PROMO_CSS + '\n' +
+'<style>\n' + COMMON_CSS + '\n' +
+'.note-pre{white-space:pre-wrap;word-wrap:break-word;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:clamp(1rem,3vw,1.25rem);font-family:var(--mono);font-size:.95rem;line-height:1.6;color:var(--text);margin:0}\n' +
+'.note-pre.big{font-size:clamp(1.3rem,4vw,1.8rem);line-height:1.45;text-align:center;padding:clamp(1.5rem,5vw,2.25rem) clamp(1rem,3vw,1.25rem);font-weight:500}\n' +
 '</style></head><body>\n' +
-'<header><a class="logo" href="https://' + BASE_HOST + '/">0g<span class="dot">.</span>hk</a>\n' +
-'<div class="seg"><button type="button" onclick="navigator.clipboard.writeText(document.getElementById(\'c\').innerText).then(()=>{this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1200)})">复制</button><a href="/raw">原文</a></div></header>\n' +
-preOpen + esc(content) + '</pre>\n' +
+'<div class="wrap">\n' +
+headerHtml(segRight) + '\n' +
+'<pre id="c" class="' + preClass + '">' + esc(content) + '</pre>\n' +
 promoCardHtml() + '\n' +
- footerHtml() + '\n' +
+footerHtml() + '\n' +
+'</div>\n' +
 '</body></html>';
   return html(body);
 }
@@ -242,24 +240,30 @@ export function interstitialPage(sub, target) {
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>即将跳转 · ' + BASE_HOST + '</title>\n' +
 '<meta name="robots" content="noindex">\n' +
-'<style>' + THEME_CSS + '*{box-sizing:border-box;margin:0;padding:0}html{-webkit-text-size-adjust:100%}\n' +
-'body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:16px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:clamp(1rem,4vw,2rem);padding-bottom:max(clamp(1rem,4vw,2rem),env(safe-area-inset-bottom));background:var(--bg);color:var(--text)}\n' +
-'.card{max-width:560px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:clamp(1.25rem,4vw,2rem);text-align:center}\n' +
-'h1{font-size:clamp(1rem,3vw,1.15rem);margin-bottom:.5rem;font-weight:600}\n' +
-'.warn{font-size:.88rem;color:var(--warn-fg);margin-bottom:1rem;line-height:1.55}\n' +
-'.host{font-family:var(--mono);font-size:1.05rem;font-weight:600;color:var(--warn);word-break:break-all;line-height:1.4}\n' +
-'.target{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;margin:1rem 0;font-family:var(--mono);font-size:.82rem;text-align:left;word-break:break-all;line-height:1.5;color:var(--text)}\n' +
-'a.btn{display:inline-block;margin-top:.5rem;padding:.85rem 1.75rem;min-height:48px;border-radius:8px;background:var(--accent);color:var(--accent-fg);text-decoration:none;font-size:1rem;font-weight:500;-webkit-tap-highlight-color:transparent}\n' +
-'@media(hover:hover){a.btn:hover{opacity:.88}}\n' +
-'.foot{margin-top:1.5rem;font-size:.8rem;color:var(--faint)}.foot a{color:inherit;text-decoration:none;margin:0 .5rem;padding:.2rem 0;display:inline-block}\n' +
+'<style>\n' + COMMON_CSS + '\n' +
+'.warn-card{max-width:560px;margin-left:auto;margin-right:auto;border-left:3px solid var(--warn)}\n' +
+'.warn-card h2{margin:0 0 .5rem;font-size:1.05rem;font-weight:600}\n' +
+'.warn-lead{font-size:.88rem;color:var(--muted);margin:0 0 1rem;line-height:1.55}\n' +
+'.host{font-family:var(--mono);font-size:1.05rem;font-weight:600;color:var(--warn);word-break:break-all;line-height:1.4;margin:0 0 .75rem}\n' +
+'.target{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;margin:0 0 1.25rem;font-family:var(--mono);font-size:.82rem;word-break:break-all;line-height:1.5;color:var(--text)}\n' +
+'.act{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}\n' +
+'.act .links{margin-left:auto;font-size:.8rem;color:var(--faint)}\n' +
+'.act .links a{color:inherit;text-decoration:none;cursor:pointer}\n' +
+'@media(hover:hover){.act .links a:hover{color:var(--text)}}\n' +
 '</style></head><body>\n' +
-'<div class="card">\n' +
-'<h1>即将离开 ' + BASE_HOST + '</h1>\n' +
-'<div class="warn">此链接由用户创建，不在可信白名单。请确认目标域名：</div>\n' +
+'<div class="wrap">\n' +
+headerHtml() + '\n' +
+'<div class="card warn-card">\n' +
+'<h2>即将离开 ' + BASE_HOST + '</h2>\n' +
+'<p class="warn-lead">此链接由用户创建，不在可信白名单。请先确认目标域名：</p>\n' +
 '<div class="host">' + esc(host) + '</div>\n' +
 '<div class="target">' + esc(target) + '</div>\n' +
-'<a class="btn" rel="noopener noreferrer nofollow" href="' + esc(target) + '">确认继续 →</a>\n' +
-'<div class="foot"><a href="https://' + BASE_HOST + '/">返回首页</a> · <a href="#" onclick="return rep()">举报此链接</a></div>\n' +
+'<div class="act">\n' +
+'<a class="btn primary" rel="noopener noreferrer nofollow" href="' + esc(target) + '">确认继续 →</a>\n' +
+'<span class="links"><a href="#" onclick="return rep()">举报此链接</a></span>\n' +
+'</div>\n' +
+'</div>\n' +
+footerHtml() + '\n' +
 '</div>\n' +
 '<script>function rep(){if(!confirm("确认举报此链接为钓鱼/恶意/欺诈？"))return false;fetch("/abuse/report",{method:"POST",headers:{accept:"application/json"}}).then(function(r){return r.json()}).then(function(j){alert(j && j.disabled?"举报已提交，链接已被自动禁用。":"举报已提交，感谢协助。")}).catch(function(){alert("网络错误，稍后重试。")});return false}</script>\n' +
 '</body></html>';
@@ -280,6 +284,8 @@ export function editNotePage(sub, ttlKey) {
 '.error-box{background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:1rem;font-size:.9rem;line-height:1.5}\n' +
 '@media(prefers-color-scheme:dark){.error-box{background:#2a0e0e;border-color:#7f1d1d;color:#fca5a5}}\n' +
 '</style></head><body>\n' +
+'<div class="wrap">\n' +
+headerHtml() + '\n' +
 '<div class="card">\n' +
 '<h1>编辑笔记</h1>\n' +
 '<div class="meta"><strong>' + esc(sub) + '.' + BASE_HOST + '</strong> · 保留 ' + esc(ttlKey) + '</div>\n' +
@@ -288,6 +294,7 @@ export function editNotePage(sub, ttlKey) {
 '<div class="row"><button id="s" onclick="save()">保存</button><span id="st" class="status"></span></div>\n' +
 '</div>\n' +
 '<div id="err" class="error-box" style="display:none"></div>\n' +
+'</div>\n' +
  footerHtml() + '\n' +
 '</div>\n' +
 '<script>\n' +
@@ -309,12 +316,26 @@ export function editNotePage(sub, ttlKey) {
 export function notFoundPage(sub) {
   const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · 还没人占用</title>' +
 '<meta name="robots" content="noindex">' +
-'<style>' + THEME_CSS + '*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:16px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:clamp(1rem,4vw,2rem);background:var(--bg);color:var(--text);line-height:1.6}.wrap{max-width:480px;width:100%;text-align:center}.tag{font-size:.8rem;color:var(--faint);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem}.sub-name{font-family:var(--mono);font-size:clamp(1.1rem,4vw,1.4rem);font-weight:600;color:var(--warn);word-break:break-all;margin-bottom:.5rem;line-height:1.3}.lead{font-size:.95rem;color:var(--muted);margin-bottom:1.5rem}' + PROMO_CSS + '.promo{margin-top:0}</style>' +
-'</head><body><div class="wrap">' +
-'<div class="tag">404 · 还没人占用</div>' +
-'<div class="sub-name">' + esc(sub) + '.' + BASE_HOST + '</div>' +
-'<div class="lead">这个子域名空着，想要么？</div>' +
-'<a class="promo" href="https://' + BASE_HOST + '/?n=' + encodeURIComponent(sub) + '"><span class="promo-t">占下 ' + esc(sub) + ' →</span><span class="promo-s">把文字或链接变成你的 <code>' + esc(sub) + '.' + BASE_HOST + '</code></span></a>' +
-'</div></body></html>';
+'<style>\n' + COMMON_CSS + '\n' +
+'.nf-body{text-align:center}\n' +
+'.tag{font-size:.76rem;color:var(--faint);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.6rem}\n' +
+'.sub-name{font-family:var(--mono);font-size:clamp(1.1rem,4vw,1.35rem);font-weight:600;color:var(--warn);word-break:break-all;margin-bottom:.5rem;line-height:1.3}\n' +
+'.lead{font-size:.9rem;color:var(--muted);margin:0}\n' +
+'</style></head><body>\n' +
+'<div class="wrap">\n' +
+headerHtml() + '\n' +
+'<div class="card nf-body">\n' +
+'<div class="tag">404 · 还没人占用</div>\n' +
+'<div class="sub-name">' + esc(sub) + '.' + BASE_HOST + '</div>\n' +
+'<div class="lead">这个子域名空着，想要么？</div>\n' +
+'</div>\n' +
+'<a class="promo" href="https://' + BASE_HOST + '/?n=' + encodeURIComponent(sub) + '">' +
+'<span class="promo-t">占下 <span style="font-family:var(--mono)">' + esc(sub) + '</span> →</span>' +
+'<span class="promo-s">把文字或链接变成你的 <code>' + esc(sub) + '.' + BASE_HOST + '</code></span>' +
+'<span class="promo-cta">去创建 →</span>' +
+'</a>\n' +
+footerHtml() + '\n' +
+'</div>\n' +
+'</body></html>';
   return html(body, 404);
 }

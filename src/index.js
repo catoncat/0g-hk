@@ -190,63 +190,74 @@ function editorPage(opts) {
 '<meta name="description" content="把一段文字或链接变成 xxx.0g.hk。无账号、一次 GET 完成。">' +
 '<title>' + BASE_HOST + ' — 临时笔记 · 短链</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
-'.brand{font-family:var(--mono);font-size:clamp(1.6rem,6vw,2.1rem);font-weight:600;letter-spacing:-.02em;margin-bottom:.5rem}\n' +
+// Brand wordmark.
+'.brand{font-family:var(--mono);font-size:clamp(2rem,7vw,2.6rem);font-weight:700;letter-spacing:-.035em;margin-bottom:.35rem;line-height:1}\n' +
 '.brand .dot{color:#10b981}\n' +
-'.tagline{color:var(--muted);font-size:clamp(1.05rem,3vw,1.2rem);line-height:1.5;margin-bottom:1.5rem;max-width:30ch}\n' +
-'.tagline code{font-size:.9em;font-family:var(--mono);background:rgba(128,128,128,.12);padding:.05rem .35rem;border-radius:4px}\n' +
-'textarea{min-height:5.5rem}@supports(field-sizing:content){textarea{field-sizing:content;min-height:4rem}}\n' +
-// Input bar: name + suffix + submit on one line.
-'.bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem;align-items:stretch;margin-top:.75rem}\n' +
-'.bar .name-wrap{display:flex;align-items:stretch;border:1px solid var(--border);border-radius:8px;background:var(--surface);overflow:hidden;min-width:0}\n' +
-'.bar .name-wrap:focus-within{border-color:var(--text)}\n' +
-'.bar input{flex:1;min-width:0;border:0;background:transparent;padding:0 .7rem;font:inherit;color:inherit;outline:0}\n' +
-'.bar .suffix{font-family:var(--mono);color:var(--faint);font-size:.92rem;display:flex;align-items:center;padding:0 .7rem 0 0;white-space:nowrap;flex-shrink:0}\n' +
-'.bar button{min-height:48px;padding:0 1.1rem;font-size:.98rem;white-space:nowrap}\n' +
-'.bar .name-wrap.err{border-color:var(--err)}\n' +
-// Meta row: name-status (left) + type-hint (right).
-'.meta{display:flex;justify-content:space-between;align-items:center;gap:.5rem;min-height:1.3em;margin-top:.45rem;font-size:.78rem;line-height:1.4}\n' +
-'.meta .name-status{color:var(--faint);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n' +
-'.meta .name-status.ok{color:var(--ok)}.meta .name-status.warn{color:var(--warn)}.meta .name-status.err{color:var(--err)}\n' +
-'.meta .type-hint{color:var(--faint);font-family:var(--mono);letter-spacing:.02em;flex-shrink:0}\n' +
-// TTL chip row.
-'.ttl-row{display:flex;gap:.5rem;align-items:center;margin-top:.9rem;font-size:.82rem;color:var(--muted);flex-wrap:wrap}\n' +
-'.ttl-row .lbl{color:var(--faint);font-size:.78rem}\n' +
+// Tagline: allow inline code chip to stay on same line as verb via nowrap wrapper.
+'.tagline{color:var(--muted);font-size:clamp(1rem,2.8vw,1.1rem);line-height:1.55;margin-bottom:1.5rem;max-width:34ch}\n' +
+'.tagline .kw{color:var(--text);font-family:var(--mono);font-size:.92em;font-weight:500;white-space:nowrap;background:none;padding:0}\n' +
+'.tagline .kw .dot{color:#10b981}\n' +
+// Textarea: softer default + subtle focus ring (overrides COMMON_CSS outline).
+'textarea{min-height:5rem;border-color:var(--border);font-size:.95rem}@supports(field-sizing:content){textarea{field-sizing:content;min-height:3.5rem}}\n' +
+'textarea:focus{outline:0;border-color:var(--text);box-shadow:0 0 0 3px rgba(17,17,17,.06)}\n' +
+'@media(prefers-color-scheme:dark){textarea:focus{box-shadow:0 0 0 3px rgba(237,237,237,.08)}}\n' +
+// Field caption (small muted label above each control).
+'.cap{font-size:.76rem;color:var(--faint);margin:1rem 0 .4rem;display:flex;justify-content:space-between;align-items:baseline;gap:.5rem}\n' +
+'.cap .hint-r{color:var(--faint);font-size:.72rem}\n' +
+// Name field (full-width, with inline .0g.hk suffix).
+'.name-wrap{display:flex;align-items:stretch;border:1px solid var(--border);border-radius:8px;background:var(--surface);overflow:hidden;min-width:0;min-height:44px}\n' +
+'.name-wrap:focus-within{border-color:var(--text);box-shadow:0 0 0 3px rgba(17,17,17,.06)}\n' +
+'@media(prefers-color-scheme:dark){.name-wrap:focus-within{box-shadow:0 0 0 3px rgba(237,237,237,.08)}}\n' +
+'.name-wrap input{flex:1;min-width:0;border:0;background:transparent;padding:0 .85rem;font:inherit;font-size:1rem;color:inherit;outline:0;min-height:unset}\n' +
+'.name-wrap .suffix{font-family:var(--mono);color:var(--faint);font-size:.9rem;display:flex;align-items:center;padding:0 .85rem 0 0;white-space:nowrap;flex-shrink:0;user-select:none}\n' +
+'.name-wrap.err{border-color:var(--err)}\n' +
+// Status line beneath name (availability check).
+'.name-status{display:block;min-height:1.1em;margin-top:.4rem;font-size:.76rem;color:var(--faint);line-height:1.4}\n' +
+'.name-status.ok{color:var(--ok)}.name-status.warn{color:var(--warn)}.name-status.err{color:var(--err)}\n' +
+// Action row: TTL chips (left) + submit button (right). Wraps on narrow screens.
+'.action{display:flex;gap:.6rem .85rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:1rem}\n' +
+'.ttl-row{display:flex;gap:.4rem;align-items:center;font-size:.78rem;color:var(--muted);flex-wrap:wrap}\n' +
+'.ttl-row .lbl{color:var(--faint);margin-right:.25rem}\n' +
 '.chip{position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent}\n' +
 '.chip input{position:absolute;opacity:0;pointer-events:none}\n' +
-'.chip span{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 .8rem;border:1px solid var(--border);border-radius:999px;font-size:.82rem;color:var(--muted);transition:all .12s;user-select:none}\n' +
-'@media(hover:hover){.chip:hover span{border-color:var(--muted)}}\n' +
+'.chip span{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 .85rem;border:1px solid var(--border);border-radius:999px;font-size:.82rem;color:var(--muted);transition:all .12s;user-select:none;background:transparent}\n' +
+'@media(hover:hover){.chip:hover span{border-color:var(--muted);color:var(--text)}}\n' +
 '.chip input:checked+span{background:var(--text);color:var(--bg);border-color:var(--text)}\n' +
 '.chip input:focus-visible+span{outline:2px solid var(--text);outline-offset:2px}\n' +
-// Scenarios.
-'.scn{display:grid;gap:.85rem;grid-template-columns:minmax(0,1fr);margin-top:2rem}\n' +
-'@media(min-width:760px){.scn{grid-template-columns:repeat(3,minmax(0,1fr))}}\n' +
-'.s-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;font-size:.88rem;line-height:1.55;display:flex;flex-direction:column;gap:.45rem;min-width:0}\n' +
-'.s-head{display:flex;gap:.5rem;align-items:baseline}\n' +
-'.s-emoji{font-size:1rem;line-height:1}\n' +
-'.s-title{font-weight:600;color:var(--text);font-size:.92rem}\n' +
-'.s-desc{color:var(--muted);font-size:.83rem;line-height:1.5}\n' +
-'.s-card pre{font-family:var(--mono);font-size:.76rem;background:rgba(128,128,128,.1);padding:.55rem .65rem;border-radius:6px;color:var(--text);overflow-x:auto;white-space:pre;line-height:1.55;margin-top:auto}\n' +
+// Primary submit button.
+'.action button{min-height:44px;padding:0 1.25rem;font-size:.95rem;white-space:nowrap;flex-shrink:0}\n' +
+'.type-hint{font-size:.72rem;color:var(--faint);font-family:var(--mono);margin-top:.55rem;min-height:1.1em;text-align:right;letter-spacing:.01em}\n' +
+// Scenarios — tighter margin, compact cards.
+'.scn{display:grid;gap:.7rem;grid-template-columns:minmax(0,1fr);margin-top:1.25rem}\n' +
+'@media(min-width:760px){.scn{grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem}}\n' +
+'.s-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;line-height:1.5;display:flex;flex-direction:column;gap:.4rem;min-width:0}\n' +
+'.s-head{display:flex;gap:.45rem;align-items:baseline}\n' +
+'.s-emoji{font-size:1rem;line-height:1;flex-shrink:0}\n' +
+'.s-title{font-weight:600;color:var(--text);font-size:.9rem}\n' +
+'.s-desc{color:var(--muted);font-size:.8rem;line-height:1.5}\n' +
+'.s-card pre{font-family:var(--mono);font-size:.72rem;background:rgba(128,128,128,.08);padding:.55rem .65rem;border-radius:6px;color:var(--text);overflow-x:auto;white-space:pre;line-height:1.55;margin-top:auto;-webkit-overflow-scrolling:touch}\n' +
+'.s-card pre::-webkit-scrollbar{height:0}\n' +
 '</style></head><body>\n' +
 '<div class="wrap">\n' +
 '<div class="card">\n' +
 '<div class="brand">0g<span class="dot">.</span>hk</div>\n' +
-'<div class="tagline">把文字或链接，变成你自己的 <code>xxx.0g.hk</code></div>\n' +
+'<div class="tagline">把文字或链接，变成你的 <span class="kw">talk<span class="dot">.</span>0g<span class="dot">.</span>hk</span></div>\n' +
 (alertTop ? '<div class="alert-warn">' + alertTop + '</div>\n' : '') +
 '<form onsubmit="return go(event)">\n' +
 '<label for="c" class="sr">内容</label>' +
 '<textarea id="c" required autofocus rows="3" placeholder="粘贴文字，或 https://…">' + esc(prefillContent) + '</textarea>\n' +
-'<div class="bar">\n' +
-'<div class="name-wrap' + (errorName ? ' err' : '') + '" id="nw"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" inputmode="url" pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="留空自动分配" aria-label="自定义子域名"><span class="suffix">.' + BASE_HOST + '</span></div>' +
-'<button type="submit" id="submitBtn">生成 →</button>' +
-'</div>\n' +
-'<div class="meta"><span id="ns" class="name-status' + (errorName ? ' err' : '') + '">' + esc(errorName) + '</span><span id="typeHint" class="type-hint"></span></div>\n' +
-'<div class="ttl-row"><span class="lbl">保留</span>' + ttlChips + '</div>\n' +
+'<div class="type-hint" id="typeHint"></div>\n' +
+'<div class="cap"><span>子域名字</span><span class="hint-r">留空 = 随机分配</span></div>\n' +
+'<div class="name-wrap' + (errorName ? ' err' : '') + '" id="nw"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" inputmode="url" pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="talk" aria-label="自定义子域名"><span class="suffix">.' + BASE_HOST + '</span></div>' +
+'<span id="ns" class="name-status' + (errorName ? ' err' : '') + '">' + esc(errorName) + '</span>\n' +
+'<div class="action"><div class="ttl-row"><span class="lbl">保留</span>' + ttlChips + '</div>' +
+'<button type="submit" id="submitBtn">生成 →</button></div>\n' +
 '</form>\n' +
 '</div>\n' +
 '<section class="scn" aria-label="用法">\n' +
-'<div class="s-card"><div class="s-head"><span class="s-emoji">📋</span><span class="s-title">分享临时文本</span></div><div class="s-desc">剪贴板→一个可分享的 URL。</div><pre>pbpaste | curl -sS --data-binary @- 0g.hk/</pre></div>\n' +
-'<div class="s-card"><div class="s-head"><span class="s-emoji">🔗</span><span class="s-title">做个好记的短链</span></div><div class="s-desc">子域即资源，比随机哈希好记 10 倍。</div><pre>curl -d https://… \'0g.hk/?n=talk\'</pre></div>\n' +
-'<div class="s-card"><div class="s-head"><span class="s-emoji">🤖</span><span class="s-title">让 AI 帮你建</span></div><div class="s-desc">curl 主页直接返回说明书，AI 读完就会用。</div><pre>curl 0g.hk      # 纯文本手册\n# 然后跟 AI 说：\n# “用 0g.hk 给我建个短链”</pre></div>\n' +
+'<div class="s-card"><div class="s-head"><span class="s-emoji">📋</span><span class="s-title">分享临时文本</span></div><div class="s-desc">剪贴板 → 一个可分享的 URL</div><pre>pbpaste | curl -d @- 0g.hk</pre></div>\n' +
+'<div class="s-card"><div class="s-head"><span class="s-emoji">🔗</span><span class="s-title">好记的短链</span></div><div class="s-desc">子域名即文案，比哈希好记 10 倍</div><pre>curl -d https://… 0g.hk/?n=talk</pre></div>\n' +
+'<div class="s-card"><div class="s-head"><span class="s-emoji">🤖</span><span class="s-title">让 AI 帮你建</span></div><div class="s-desc">curl 主页直接返回说明书</div><pre>curl 0g.hk  # AI 读完就会用</pre></div>\n' +
 '</section>\n' +
  footerHtml() + '\n' +
 '</div>\n' +
@@ -257,7 +268,7 @@ function editorPage(opts) {
 'function setStatus(msg,cls){ns.textContent=msg;ns.className="name-status "+(cls||"")}\n' +
 // Rotating placeholder hints that name is customizable.
 'var demos=["talk","q3-plan","read-me","demo","party","notes"],di=0;\n' +
-'function cyclePh(){if(document.activeElement===nInp||nInp.value)return;nInp.placeholder="留空自动 · 或起名如 "+demos[di=(di+1)%demos.length]}\n' +
+'function cyclePh(){if(document.activeElement===nInp||nInp.value)return;nInp.placeholder=demos[di=(di+1)%demos.length]}\n' +
 'setInterval(cyclePh,2200);cyclePh();\n' +
 'function updateCta(){var v=ta.value.trim();if(!v){submitBtn.textContent="生成 →";th.textContent="";return}if(/^https?:\\/\\//i.test(v)){submitBtn.textContent="生成短链 →";th.textContent="URL · 302 短链"}else{submitBtn.textContent="生成笔记 →";th.textContent=v.length+" 字 · 笔记页"}}\n' +
 'ta.addEventListener("input",updateCta);updateCta();\n' +

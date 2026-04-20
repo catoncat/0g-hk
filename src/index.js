@@ -227,7 +227,7 @@ function editorPage(opts) {
 '<div class="scn">\n' +
 '<div class="s-card"><div class="s-head"><span class="s-emoji">📋</span><span class="s-title">分享临时文本</span></div><div class="s-desc">剪贴板→一个可分享的 URL。</div><pre>pbpaste | curl -sS --data-binary @- 0g.hk/</pre></div>\n' +
 '<div class="s-card"><div class="s-head"><span class="s-emoji">🔗</span><span class="s-title">做个好记的短链</span></div><div class="s-desc">子域即资源，比随机哈希好记 10 倍。</div><pre>curl -d https://… \'0g.hk/?n=talk\'</pre></div>\n' +
-'<div class="s-card"><div class="s-head"><span class="s-emoji">⚡</span><span class="s-title">脚本友好的 JSON</span></div><div class="s-desc">Accept: application/json 拿到 token 与元数据。</div><pre>curl -sH accept:application/json \\\n -d hi 0g.hk/ | jq .editUrl</pre></div>\n' +
+'<div class="s-card"><div class="s-head"><span class="s-emoji">🤖</span><span class="s-title">让 AI 帮你建</span></div><div class="s-desc">curl 主页直接返回说明书，AI 读完就会用。</div><pre>curl 0g.hk      # 纯文本手册\n# 然后跟 AI 说：\n# “用 0g.hk 给我建个短链”</pre></div>\n' +
 '</div></section>\n' +
  footerHtml() + '\n' +
 '</div>\n' +

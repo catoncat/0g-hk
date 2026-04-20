@@ -109,27 +109,35 @@ function html(body, status = 200, extra = {}) {
 
 // ---------- shared HTML bits ----------
 
+// Shared CSS. Mobile-first, CSS custom properties, 44px+ tap targets, 16px base
+// font (prevents iOS focus-zoom), respects safe-area insets.
 const COMMON_CSS = [
-  ':root{color-scheme:light dark}',
-  '*{box-sizing:border-box;margin:0}',
-  'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;background:#fafafa}',
-  '@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#eee}.card{background:#161616;border-color:#333}input,textarea,select{background:#222;color:#eee;border-color:#444}.hint,.meta,.foot{color:#999}.meta a{color:#eee}.target,.edit-card{background:#1a1a1a}}',
-  '.card{max-width:640px;width:100%;background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:2rem;box-shadow:0 4px 20px rgba(0,0,0,.04)}',
-  'h1{font-size:1.25rem;margin-bottom:.3rem}',
-  '.hint{font-size:.85rem;color:#666;margin-bottom:1.5rem;line-height:1.7}',
-  'code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(128,128,128,.12);padding:.05rem .3rem;border-radius:3px;font-size:.82rem}',
-  'label{display:block;font-size:.85rem;color:#666;margin:1rem 0 .4rem}',
-  'input,textarea,select{width:100%;padding:.6rem .8rem;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:.95rem}',
-  'textarea{min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;line-height:1.5}',
-  'button{padding:.75rem 1.5rem;border:0;border-radius:8px;background:#111;color:#fff;cursor:pointer;font-size:.95rem;font-weight:500}',
-  'button:hover{background:#333}',
-  '@media(prefers-color-scheme:dark){button{background:#fff;color:#000}button:hover{background:#ddd}}',
-  'button.secondary{background:transparent;color:inherit;border:1px solid #ddd;font-weight:400}',
-  'button.secondary:hover{background:rgba(128,128,128,.12)}',
-  '.foot{margin-top:1.5rem;text-align:center;font-size:.8rem;color:#888}.foot a{color:inherit;text-decoration:none;margin:0 .3rem}',
-  '.alert-warn{background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;color:#78350f;font-size:.88rem;line-height:1.55}',
-  '.alert-warn a{color:#78350f;text-decoration:underline}',
-  '@media(prefers-color-scheme:dark){.alert-warn{background:#2a1f0a;border-color:#78350f;color:#fbbf24}.alert-warn a{color:#fbbf24}}',
+  ':root{color-scheme:light dark;--bg:#fafafa;--surface:#fff;--text:#111;--muted:#525252;--faint:#888;--border:#e5e5e5;--border-strong:#d4d4d4;--accent:#111;--accent-fg:#fff;--ok:#059669;--warn:#b45309;--warn-bg:#fef3c7;--warn-fg:#78350f;--warn-border:#fcd34d;--err:#dc2626;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}',
+  '@media(prefers-color-scheme:dark){:root{--bg:#0a0a0a;--surface:#141414;--text:#ededed;--muted:#a3a3a3;--faint:#737373;--border:#262626;--border-strong:#3a3a3a;--accent:#fff;--accent-fg:#000;--warn-bg:#2a1f0a;--warn-fg:#fbbf24;--warn-border:#78350f}}',
+  '*{box-sizing:border-box;margin:0;padding:0}',
+  'html{-webkit-text-size-adjust:100%}',
+  'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.55;background:var(--bg);color:var(--text);padding:clamp(1rem,4vw,2rem) clamp(.85rem,4vw,2rem);min-height:100vh;padding-bottom:max(clamp(1.25rem,4vw,2rem),env(safe-area-inset-bottom))}',
+  '.wrap{max-width:640px;margin:0 auto}',
+  '.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:clamp(1.1rem,4vw,1.75rem)}',
+  'h1{font-size:clamp(1.1rem,3.2vw,1.3rem);font-weight:600;letter-spacing:-.01em;margin-bottom:.3rem}',
+  '.hint{font-size:.92rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.6}',
+  'code{font-family:var(--mono);background:rgba(128,128,128,.14);padding:.05rem .32rem;border-radius:4px;font-size:.85em}',
+  'label{display:block;font-size:.82rem;color:var(--muted);margin:0 0 .35rem;font-weight:500}',
+  '.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}',
+  'input,textarea,select{width:100%;padding:.7rem .85rem;border:1px solid var(--border-strong);border-radius:8px;font-family:inherit;font-size:1rem;background:var(--surface);color:var(--text);min-height:44px}',
+  'select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--faint) 50%),linear-gradient(135deg,var(--faint) 50%,transparent 50%);background-position:calc(100% - 18px) 52%,calc(100% - 13px) 52%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:2rem}',
+  'input:focus,textarea:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}',
+  'textarea{min-height:180px;font-family:var(--mono);font-size:.95rem;resize:vertical;line-height:1.55}',
+  'button{padding:.8rem 1.25rem;border:0;border-radius:8px;background:var(--accent);color:var(--accent-fg);cursor:pointer;font-size:1rem;font-weight:500;min-height:44px;font-family:inherit;-webkit-tap-highlight-color:transparent;transition:opacity .12s}',
+  'button:active{transform:translateY(1px)}',
+  '@media(hover:hover){button:hover{opacity:.88}}',
+  'button.secondary{background:transparent;color:inherit;border:1px solid var(--border-strong);font-weight:400}',
+  '@media(hover:hover){button.secondary:hover{background:rgba(128,128,128,.1)}}',
+  'button[disabled]{opacity:.5;cursor:not-allowed}',
+  '.foot{margin-top:1.5rem;text-align:center;font-size:.82rem;color:var(--faint)}',
+  '.foot a{color:inherit;text-decoration:none;margin:0 .5rem;padding:.25rem 0;display:inline-block}',
+  '.alert-warn{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;color:var(--warn-fg);font-size:.9rem;line-height:1.55}',
+  '.alert-warn a{color:inherit;text-decoration:underline}',
 ].join("\n");
 
 function footerHtml() {
@@ -145,43 +153,82 @@ function editorPage(opts) {
   const prefillTtl = opts.prefillTtl || DEFAULT_TTL;
   const errorName = opts.errorName || "";
   const alertTop = opts.alertTop || "";
+  const advOpen = (prefillName || errorName || (prefillTtl && prefillTtl !== DEFAULT_TTL)) ? ' open' : '';
   const ttlOpts = Object.keys(TTL_OPTIONS).map((k) => '<option' + (k === prefillTtl ? ' selected' : '') + '>' + k + '</option>').join('');
 
   const body = '<!DOCTYPE html>\n' +
-'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + BASE_HOST + ' — 临时笔记 / 短链</title>\n' +
+'<html lang="zh"><head><meta charset="utf-8">' +
+'<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
+'<meta name="theme-color" content="#fafafa" media="(prefers-color-scheme:light)">' +
+'<meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme:dark)">' +
+'<meta name="description" content="把一段文字或链接变成 xxx.0g.hk。无账号、一次 GET 完成。">' +
+'<title>' + BASE_HOST + ' — 临时笔记 · 短链</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
-'.row{display:flex;gap:.5rem;align-items:center}.row input{flex:1}.row .suffix{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#888;font-size:.9rem}\n' +
-'.cols{display:grid;grid-template-columns:1fr 140px;gap:.75rem}\n' +
-'form>button{margin-top:1.25rem}\n' +
-'.name-status{display:block;font-size:.78rem;margin-top:.3rem;min-height:1.1em;color:#888}\n' +
-'.name-status.ok{color:#059669}\n' +
-'.name-status.warn{color:#b45309}\n' +
-'.name-status.err{color:#dc2626}\n' +
-'.name-status.pending{color:#999}\n' +
-'input.err-border{border-color:#dc2626!important}\n' +
+'.brand{font-family:var(--mono);font-size:clamp(1.5rem,5.5vw,1.9rem);font-weight:600;letter-spacing:-.02em;margin-bottom:.4rem}\n' +
+'.brand .dot{color:#10b981}\n' +
+'.tagline{color:var(--muted);font-size:1rem;line-height:1.6;margin-bottom:1.5rem}\n' +
+'.tagline code{font-size:.9em}\n' +
+'.cta{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}\n' +
+'.cta button{width:100%;min-height:50px;font-size:1.02rem}\n' +
+'.type-hint{font-size:.8rem;color:var(--faint);font-family:var(--mono);text-align:center;min-height:1.2em;letter-spacing:.02em}\n' +
+'details.adv{margin-top:1.25rem;border-top:1px solid var(--border);padding-top:1rem}\n' +
+'details.adv>summary{cursor:pointer;list-style:none;font-size:.9rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;user-select:none;-webkit-tap-highlight-color:transparent;padding:.25rem 0;min-height:32px}\n' +
+'details.adv>summary::-webkit-details-marker{display:none}\n' +
+'details.adv>summary::before{content:"+";display:inline-flex;width:1em;justify-content:center;font-family:var(--mono);color:var(--faint)}\n' +
+'details.adv[open]>summary::before{content:"−"}\n' +
+'.adv-body{margin-top:.9rem;display:grid;gap:.9rem;grid-template-columns:1fr}\n' +
+'@media(min-width:560px){.adv-body{grid-template-columns:1fr 140px}}\n' +
+'.row{display:flex;gap:.4rem;align-items:stretch}.row input{flex:1;min-width:0}\n' +
+'.row .suffix{font-family:var(--mono);color:var(--faint);font-size:.9rem;display:flex;align-items:center;padding:0 .2rem;white-space:nowrap}\n' +
+'.name-status{display:block;font-size:.78rem;margin-top:.35rem;min-height:1.1em;color:var(--faint);line-height:1.45}\n' +
+'.name-status.ok{color:var(--ok)}.name-status.warn{color:var(--warn)}.name-status.err{color:var(--err)}\n' +
+'input.err-border{border-color:var(--err)!important}\n' +
+'.scenarios{margin-top:2rem}\n' +
+'.scenarios-title{font-size:.72rem;color:var(--faint);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.9rem;font-weight:600;padding-left:.2rem}\n' +
+'.scn{display:grid;gap:.85rem;grid-template-columns:1fr}\n' +
+'@media(min-width:760px){.scn{grid-template-columns:1fr 1fr 1fr}}\n' +
+'.s-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;font-size:.88rem;line-height:1.55;display:flex;flex-direction:column;gap:.45rem}\n' +
+'.s-head{display:flex;gap:.5rem;align-items:baseline}\n' +
+'.s-emoji{font-size:1rem;line-height:1}\n' +
+'.s-title{font-weight:600;color:var(--text);font-size:.92rem}\n' +
+'.s-desc{color:var(--muted);font-size:.85rem;line-height:1.5}\n' +
+'.s-card pre{font-family:var(--mono);font-size:.76rem;background:rgba(128,128,128,.1);padding:.55rem .65rem;border-radius:6px;color:var(--text);overflow-x:auto;white-space:pre;line-height:1.55;margin-top:auto}\n' +
 '</style></head><body>\n' +
+'<div class="wrap">\n' +
 '<div class="card">\n' +
-'<h1>临时笔记 / 短链</h1>\n' +
-'<div class="hint">贴一段文字 → 笔记页<br>贴一个 <code>http(s)://</code> 链接 → 302 短链（非白名单需确认页）<br>默认 30 天后过期。创建后会给你一个 <strong>一次性编辑链接</strong>，保存它可以日后修改同名内容。</div>\n' +
+'<div class="brand">0g<span class="dot">.</span>hk</div>\n' +
+'<div class="tagline">把一段文字或链接变成 <code>xxx.0g.hk</code>。<br>无账号、无表单、一次 <code>GET</code> 完成。</div>\n' +
 (alertTop ? '<div class="alert-warn">' + alertTop + '</div>\n' : '') +
 '<form onsubmit="return go(event)">\n' +
-'<div class="cols">\n' +
-'<div><label>自定义名字（可选）</label><div class="row"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="例如 abc"' + (errorName ? ' class="err-border"' : '') + '><span class="suffix">.' + BASE_HOST + '</span></div><span id="ns" class="name-status' + (errorName ? ' err' : '') + '">' + esc(errorName) + '</span></div>\n' +
-'<div><label>保留</label><select id="ttl">' + ttlOpts + '</select></div>\n' +
+'<label for="c" class="sr">内容</label>' +
+'<textarea id="c" required autofocus placeholder="粘贴一段文字，或 https://…">' + esc(prefillContent) + '</textarea>\n' +
+'<div class="cta"><button type="submit" id="submitBtn">生成 →</button><span id="typeHint" class="type-hint"></span></div>\n' +
+'<details class="adv"' + advOpen + '><summary>自定义名字 · 保留时长</summary>\n' +
+'<div class="adv-body">\n' +
+'<div><label for="n">自定义名字（可选）</label><div class="row"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" inputmode="url" pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="例如 talk"' + (errorName ? ' class="err-border"' : '') + '><span class="suffix">.' + BASE_HOST + '</span></div><span id="ns" class="name-status' + (errorName ? ' err' : '') + '">' + esc(errorName) + '</span></div>\n' +
+'<div><label for="ttl">保留时长</label><select id="ttl">' + ttlOpts + '</select></div>\n' +
+'</div></details>\n' +
+'</form>\n' +
 '</div>\n' +
-'<label>内容</label>\n' +
-'<textarea id="c" required autofocus placeholder="文字 / https://...">' + esc(prefillContent) + '</textarea>\n' +
-'<button type="submit" id="submitBtn">生成 →</button>\n' +
-'</form>\n' + footerHtml() + '\n' +
+'<section class="scenarios" aria-label="典型用法">\n' +
+'<div class="scenarios-title">三种典型用法</div>\n' +
+'<div class="scn">\n' +
+'<div class="s-card"><div class="s-head"><span class="s-emoji">📋</span><span class="s-title">分享临时文本</span></div><div class="s-desc">把剪贴板扔上来，换一个可分享的 URL。</div><pre>curl 0g.hk/?c=$(pbpaste)</pre></div>\n' +
+'<div class="s-card"><div class="s-head"><span class="s-emoji">🔗</span><span class="s-title">做个好记的短链</span></div><div class="s-desc">子域即资源，比随机哈希好记 10 倍。</div><pre>talk.0g.hk → youtube/…</pre></div>\n' +
+'<div class="s-card"><div class="s-head"><span class="s-emoji">⚡</span><span class="s-title">一行接进工作流</span></div><div class="s-desc">写进 bash alias 或 iOS 快捷指令。</div><pre>alias g=\'curl 0g.hk/?c=\'</pre></div>\n' +
+'</div></section>\n' +
+ footerHtml() + '\n' +
 '</div>\n' +
 '<script>\n' +
-'var nInp=document.getElementById("n"),ns=document.getElementById("ns"),submitBtn=document.getElementById("submitBtn");\n' +
-'var checkTimer=null,lastChecked="",nameAvailable=null;\n' +
+'var nInp=document.getElementById("n"),ns=document.getElementById("ns"),submitBtn=document.getElementById("submitBtn"),ta=document.getElementById("c"),th=document.getElementById("typeHint");\n' +
+'var checkTimer=null,nameAvailable=null;\n' +
 'function setStatus(msg,cls){ns.textContent=msg;ns.className="name-status "+(cls||"")}\n' +
-'function checkName(){var v=nInp.value.trim().toLowerCase();if(!v){setStatus("","");nInp.classList.remove("err-border");nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/.test(v)){setStatus("格式无效：小写字母/数字/-，2-32 位，首尾非 -","err");nInp.classList.add("err-border");nameAvailable=false;return}setStatus("检查中…","pending");lastChecked=v;fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(nInp.value.trim().toLowerCase()!==v)return;if(!d.valid){setStatus("不可用：保留名或格式无效","err");nInp.classList.add("err-border");nameAvailable=false}else if(d.exists){setStatus("已被占用。如是你本人创建的，请使用当时拿到的编辑链接。","warn");nInp.classList.remove("err-border");nameAvailable=false}else{setStatus("✓ 可用","ok");nInp.classList.remove("err-border");nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +
+'function updateCta(){var v=ta.value.trim();if(!v){submitBtn.textContent="生成 →";th.textContent="";return}if(/^https?:\\/\\//i.test(v)){submitBtn.textContent="生成短链 →";th.textContent="检测到 URL · 将做成 302 短链"}else{submitBtn.textContent="生成笔记页 →";th.textContent=v.length+" 字 · 将做成笔记页"}}\n' +
+'ta.addEventListener("input",updateCta);updateCta();\n' +
+'function checkName(){var v=nInp.value.trim().toLowerCase();if(!v){setStatus("","");nInp.classList.remove("err-border");nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/.test(v)){setStatus("格式：小写字母/数字/-，2–32 位，首尾非 -","err");nInp.classList.add("err-border");nameAvailable=false;return}setStatus("检查中…","pending");fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(nInp.value.trim().toLowerCase()!==v)return;if(!d.valid){setStatus("不可用：保留名或格式无效","err");nInp.classList.add("err-border");nameAvailable=false}else if(d.exists){setStatus("已被占用。如是你本人创建的，请用当时的编辑链接。","warn");nInp.classList.remove("err-border");nameAvailable=false}else{setStatus("✓ 可用","ok");nInp.classList.remove("err-border");nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +
 'nInp.addEventListener("input",function(){clearTimeout(checkTimer);checkTimer=setTimeout(checkName,300)});\n' +
 'if(nInp.value)checkName();\n' +
-'function go(e){e.preventDefault();var nameVal=nInp.value.trim();if(nameVal&&nameAvailable===false){ns.className="name-status err";nInp.focus();return false}var c=document.getElementById("c").value;var t=document.getElementById("ttl").value;var p=new URLSearchParams();if(nameVal)p.set("n",nameVal);p.set("c",c);if(t&&t!=="' + DEFAULT_TTL + '")p.set("ttl",t);location.href="/?"+p.toString();return false}\n' +
+'function go(e){e.preventDefault();var nameVal=nInp.value.trim();if(nameVal&&nameAvailable===false){ns.className="name-status err";nInp.focus();return false}var c=ta.value;var t=document.getElementById("ttl").value;var p=new URLSearchParams();if(nameVal)p.set("n",nameVal);p.set("c",c);if(t&&t!=="' + DEFAULT_TTL + '")p.set("ttl",t);location.href="/?"+p.toString();return false}\n' +
 '</script>\n' +
 '</body></html>';
   return html(body);

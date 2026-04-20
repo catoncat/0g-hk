@@ -88,7 +88,24 @@ function ctEq(a, b) {
   return x === 0;
 }
 
-function isUrl(s) { return /^https?:\/\//i.test(s.trim()); }
+// Recognize URLs with or without scheme. Protocol-less forms like "github.com/foo"
+// or "example.com" are accepted and normalized to https://... via normalizeUrl().
+const URL_NO_SCHEME_RE = /^([a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,24}(?::\d+)?(?:\/\S*)?$/i;
+function isUrl(s) {
+  const t = (s || "").trim();
+  if (/^https?:\/\//i.test(t)) return true;
+  // Reject if contains whitespace or starts with punctuation that rules out a host
+  if (/\s/.test(t)) return false;
+  return URL_NO_SCHEME_RE.test(t);
+}
+// Produce the canonical stored form: always has a scheme. Non-URL input is returned unchanged.
+function normalizeUrl(s) {
+  const t = (s || "").trim();
+  if (!t) return t;
+  if (/^https?:\/\//i.test(t)) return t;
+  if (URL_NO_SCHEME_RE.test(t)) return "https://" + t;
+  return t;
+}
 function parseUrlSafe(s) { try { return new URL(s.trim()); } catch { return null; } }
 
 function isAllowedTarget(u) {
@@ -287,8 +304,7 @@ function resultPage(name, content, mode, ttlKey, editToken) {
   const short = "https://" + name + "." + BASE_HOST;
   const editUrl = editToken ? (short + "/edit#t=" + editToken) : null;
   const link = isUrl(content);
-  const typeBg = link ? "#e0f2fe" : "#fef3c7";
-  const typeFg = link ? "#0369a1" : "#92400e";
+  const typeClass = link ? "link" : "note";
   const allowed = link && isAllowedTarget(content);
   const typeLabel = link ? (allowed ? "302 直跳" : "302 需确认") : "笔记";
   const header = mode === "updated" ? "已更新" : "已创建";
@@ -307,25 +323,48 @@ function resultPage(name, content, mode, ttlKey, editToken) {
     '</div>\n'
   ) : '';
 
+  // Whitelist hint: when target is a URL but not in the allowlist, visitors see an interstitial first.
+  const hostForHint = link ? ((parseUrlSafe(content) || {}).hostname || '') : '';
+  const whitelistBlock = (link && !allowed)
+    ? ('<div class="wl-card">\n' +
+       '<div class="wl-title">🛡️ 访问者会先看到跳转确认页</div>\n' +
+       '<div class="wl-sub"><code>' + esc(hostForHint) + '</code> 不在信任域名白名单内。为了防止短链被滥用做钓鱼，访问者点链接时会先停在一个提示页，确认目标后再继续。</div>\n' +
+       '</div>\n')
+    : (link && allowed)
+      ? ('<div class="wl-card wl-ok">\n' +
+         '<div class="wl-title">✓ 访问者会直接 302 跳转</div>\n' +
+         '<div class="wl-sub"><code>' + esc(hostForHint) + '</code> 在信任域名白名单内，浏览器会直接跳到目标。</div>\n' +
+         '</div>\n')
+      : '';
+
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + header + ' · ' + esc(name) + '</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
 '.card{max-width:560px}h1{font-size:.8rem;color:' + headerColor + ';font-weight:500;margin-bottom:1rem;text-transform:uppercase;letter-spacing:.08em;display:flex;gap:.5rem;align-items:center}\n' +
-'.type{padding:.15rem .5rem;border-radius:4px;background:' + typeBg + ';color:' + typeFg + ';font-size:.7rem;font-weight:600}\n' +
+'.type{padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600}\n' +
+'.type.link{background:#e0f2fe;color:#0369a1}\n' +
+'.type.note{background:#fef3c7;color:#92400e}\n' +
+'@media(prefers-color-scheme:dark){.type.link{background:rgba(14,165,233,.18);color:#7dd3fc}.type.note{background:rgba(251,191,36,.18);color:#fcd34d}}\n' +
 '.url{display:flex;gap:.5rem;margin-bottom:1rem}\n' +
-'.url input{flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1rem;padding:.6rem .85rem;border:1px solid #ddd;border-radius:8px}\n' +
+'.url input{flex:1;font-family:var(--mono);font-size:1rem;padding:.6rem .85rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)}\n' +
 '.url button{padding:.6rem 1rem;font-size:.9rem}\n' +
 '.edit-card{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:1rem 1.1rem;margin:1rem 0 1.25rem}\n' +
 '.edit-card .edit-title{font-size:.9rem;font-weight:600;color:#92400e;margin-bottom:.25rem}\n' +
 '.edit-card .edit-sub{font-size:.78rem;color:#78716c;margin-bottom:.7rem;line-height:1.5}\n' +
 '@media(prefers-color-scheme:dark){.edit-card{background:#1e1a0f;border-color:#78350f}.edit-card .edit-title{color:#fbbf24}.edit-card .edit-sub{color:#a8a29e}}\n' +
-'.meta{font-size:.85rem;color:#666;margin-top:1rem;line-height:1.8}.meta a{color:inherit}\n' +
+'.wl-card{margin:0 0 1rem;padding:.75rem .95rem;border-radius:10px;border:1px solid var(--warn-border);background:var(--warn-bg);color:var(--warn-fg)}\n' +
+'.wl-card.wl-ok{border-color:rgba(5,150,105,.35);background:rgba(5,150,105,.08);color:#047857}\n' +
+'@media(prefers-color-scheme:dark){.wl-card.wl-ok{color:#34d399;background:rgba(5,150,105,.12);border-color:rgba(52,211,153,.3)}}\n' +
+'.wl-card .wl-title{font-size:.85rem;font-weight:600;margin-bottom:.2rem}\n' +
+'.wl-card .wl-sub{font-size:.78rem;line-height:1.55;opacity:.9}\n' +
+'.wl-card code{font-family:var(--mono);background:rgba(128,128,128,.15);padding:.05rem .3rem;border-radius:3px}\n' +
+'.meta{font-size:.85rem;color:var(--muted);margin-top:1rem;line-height:1.8}.meta a{color:inherit}\n' +
 '.qr{margin-top:1.5rem;display:flex;justify-content:center}.qr img{border-radius:8px;background:#fff;padding:8px}\n' +
 '</style></head><body>\n' +
 '<div class="card">\n' +
-'<h1>' + header + ' <span class="type">' + typeLabel + '</span></h1>\n' +
+'<h1>' + header + ' <span class="type ' + typeClass + '">' + typeLabel + '</span></h1>\n' +
 '<div class="url"><input id="u" value="' + esc(short) + '" readonly onclick="this.select()"><button onclick="copyShort(this)">复制</button></div>\n' +
- editBlock +
+ editBlock + whitelistBlock +
 '<div class="meta">访问：<a href="' + esc(short) + '">' + esc(short) + '</a><br>原文：<a href="' + esc(short) + '/raw">' + esc(short) + '/raw</a><br>' + targetLine + ttlLine + '</div>\n' +
 '<div class="qr"><img alt="QR" src="' + esc(qrSrc) + '" width="160" height="160" loading="lazy"></div>\n' +
  footerHtml() + '\n' +
@@ -675,13 +714,15 @@ async function handleCreate(req, env, url) {
 
   // Body wins when set; query string is fallback.
   let name = (bp.name || url.searchParams.get("n") || "").toLowerCase().trim();
-  const content = bp.content || url.searchParams.get("c") || "";
-  if (!content) {
+  const rawContent = bp.content || url.searchParams.get("c") || "";
+  if (!rawContent) {
     if (wantsJson(req, url)) return jsonError("missing_content", "content is required (body or ?c=)", 400);
     return editorPage();
   }
 
-  const urlMode = isUrl(content);
+  const urlMode = isUrl(rawContent);
+  // Normalize protocol-less URLs (github.com/foo -> https://github.com/foo) so stored value is canonical.
+  const content = urlMode ? normalizeUrl(rawContent) : rawContent;
   if (urlMode && content.length > URL_MAX) return replyError(req, url, "url_too_long", "URL too long (max " + URL_MAX + ")", 413, { maxLength: URL_MAX });
   if (!urlMode && content.length > TEXT_MAX) return replyError(req, url, "text_too_long", "Text too long (max " + TEXT_MAX + ")", 413, { maxLength: TEXT_MAX });
   if (urlMode && !parseUrlSafe(content)) return replyError(req, url, "malformed_url", "Malformed URL", 400);
@@ -765,7 +806,7 @@ async function handleEdit(req, env, sub, url) {
   const bp = bodyRes.body || {};
 
   const token = bp.token || url.searchParams.get("edit") || "";
-  const contentIn = bp.content || url.searchParams.get("c") || "";
+  let contentIn = bp.content || url.searchParams.get("c") || "";
   const renewFlag = bp.renew != null || url.searchParams.has("renew");
   if (!token) return replyError(req, url, "missing_token", "Missing edit token", 400);
   // content is optional: if omitted, existing content is reused (pure renew or ttl-only update)
@@ -773,6 +814,7 @@ async function handleEdit(req, env, sub, url) {
   let urlMode = false;
   if (contentIn) {
     urlMode = isUrl(contentIn);
+    if (urlMode) contentIn = normalizeUrl(contentIn);
     if (urlMode && contentIn.length > URL_MAX) return replyError(req, url, "url_too_long", "URL too long", 413, { maxLength: URL_MAX });
     if (!urlMode && contentIn.length > TEXT_MAX) return replyError(req, url, "text_too_long", "Text too long", 413, { maxLength: TEXT_MAX });
     if (urlMode && !parseUrlSafe(contentIn)) return replyError(req, url, "malformed_url", "Malformed URL", 400);

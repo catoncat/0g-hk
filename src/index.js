@@ -1,6 +1,7 @@
 // 0g.hk — 临时笔记 + 302 短链
 // GET /                                 -> 编辑器
-// GET /?c=...&n=...&ttl=...              -> 创建（返回一次性 edit token）
+// GET /exists?n=<name>                   -> JSON {valid, exists}（前端异步校验）
+// GET /?c=...&n=...&ttl=...              -> 创建（同名冲突 → 编辑器+内联错误）
 // GET <name>.0g.hk                       -> 白名单 302 / 跳转中间页 / 笔记页
 // GET <name>.0g.hk/?go=1                 -> 绕过跳转中间页
 // GET <name>.0g.hk/?edit=<tk>&c=<new>    -> 以 token 覆盖同名内容
@@ -8,11 +9,11 @@
 // GET <name>.0g.hk/edit                  -> 编辑器（从 #t= fragment 读 token）
 
 const BASE_HOST = "0g.hk";
-const RESERVED = new Set(["www", "api", "new", "admin", "edit", "raw", "n", "app", "abuse", "report"]);
+const RESERVED = new Set(["www", "api", "new", "admin", "edit", "raw", "n", "app", "abuse", "report", "exists"]);
 const NAME_RE = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 const TEXT_MAX = 8 * 1024;
 const URL_MAX = 2 * 1024;
-const RATE_LIMIT = 10; // 每 IP 每分钟（创建 + 编辑合计）
+const RATE_LIMIT = 10;
 
 const ABUSE_EMAIL = "abuse@0g.hk";
 
@@ -54,7 +55,6 @@ function randomName(len = 6) {
 }
 
 function genToken() {
-  // 16 bytes -> 22 chars base64url, ~128 bit entropy
   const buf = new Uint8Array(16);
   crypto.getRandomValues(buf);
   let b = "";
@@ -78,7 +78,6 @@ function ctEq(a, b) {
 }
 
 function isUrl(s) { return /^https?:\/\//i.test(s.trim()); }
-
 function parseUrlSafe(s) { try { return new URL(s.trim()); } catch { return null; } }
 
 function isAllowedTarget(u) {
@@ -128,6 +127,9 @@ const COMMON_CSS = [
   'button.secondary{background:transparent;color:inherit;border:1px solid #ddd;font-weight:400}',
   'button.secondary:hover{background:rgba(128,128,128,.12)}',
   '.foot{margin-top:1.5rem;text-align:center;font-size:.8rem;color:#888}.foot a{color:inherit;text-decoration:none;margin:0 .3rem}',
+  '.alert-warn{background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;color:#78350f;font-size:.88rem;line-height:1.55}',
+  '.alert-warn a{color:#78350f;text-decoration:underline}',
+  '@media(prefers-color-scheme:dark){.alert-warn{background:#2a1f0a;border-color:#78350f;color:#fbbf24}.alert-warn a{color:#fbbf24}}',
 ].join("\n");
 
 function footerHtml() {
@@ -136,35 +138,57 @@ function footerHtml() {
 
 // ---------- pages ----------
 
-function editorPage() {
-  const ttlOpts = Object.keys(TTL_OPTIONS).map((k) => '<option' + (k === DEFAULT_TTL ? ' selected' : '') + '>' + k + '</option>').join('');
+function editorPage(opts) {
+  opts = opts || {};
+  const prefillContent = opts.prefillContent || "";
+  const prefillName = opts.prefillName || "";
+  const prefillTtl = opts.prefillTtl || DEFAULT_TTL;
+  const errorName = opts.errorName || "";
+  const alertTop = opts.alertTop || "";
+  const ttlOpts = Object.keys(TTL_OPTIONS).map((k) => '<option' + (k === prefillTtl ? ' selected' : '') + '>' + k + '</option>').join('');
+
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + BASE_HOST + ' — 临时笔记 / 短链</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
 '.row{display:flex;gap:.5rem;align-items:center}.row input{flex:1}.row .suffix{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#888;font-size:.9rem}\n' +
 '.cols{display:grid;grid-template-columns:1fr 140px;gap:.75rem}\n' +
 'form>button{margin-top:1.25rem}\n' +
+'.name-status{display:block;font-size:.78rem;margin-top:.3rem;min-height:1.1em;color:#888}\n' +
+'.name-status.ok{color:#059669}\n' +
+'.name-status.warn{color:#b45309}\n' +
+'.name-status.err{color:#dc2626}\n' +
+'.name-status.pending{color:#999}\n' +
+'input.err-border{border-color:#dc2626!important}\n' +
 '</style></head><body>\n' +
 '<div class="card">\n' +
 '<h1>临时笔记 / 短链</h1>\n' +
 '<div class="hint">贴一段文字 → 笔记页<br>贴一个 <code>http(s)://</code> 链接 → 302 短链（非白名单需确认页）<br>默认 30 天后过期。创建后会给你一个 <strong>一次性编辑链接</strong>，保存它可以日后修改同名内容。</div>\n' +
+(alertTop ? '<div class="alert-warn">' + alertTop + '</div>\n' : '') +
 '<form onsubmit="return go(event)">\n' +
 '<div class="cols">\n' +
-'<div><label>自定义名字（可选）</label><div class="row"><input id="n" autocomplete="off" pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="例如 abc"><span class="suffix">.' + BASE_HOST + '</span></div></div>\n' +
+'<div><label>自定义名字（可选）</label><div class="row"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="例如 abc"' + (errorName ? ' class="err-border"' : '') + '><span class="suffix">.' + BASE_HOST + '</span></div><span id="ns" class="name-status' + (errorName ? ' err' : '') + '">' + esc(errorName) + '</span></div>\n' +
 '<div><label>保留</label><select id="ttl">' + ttlOpts + '</select></div>\n' +
 '</div>\n' +
 '<label>内容</label>\n' +
-'<textarea id="c" required autofocus placeholder="文字 / https://..."></textarea>\n' +
-'<button type="submit">生成 →</button>\n' +
+'<textarea id="c" required autofocus placeholder="文字 / https://...">' + esc(prefillContent) + '</textarea>\n' +
+'<button type="submit" id="submitBtn">生成 →</button>\n' +
 '</form>\n' + footerHtml() + '\n' +
 '</div>\n' +
-'<script>function go(e){e.preventDefault();var n=document.getElementById("n").value.trim();var c=document.getElementById("c").value;var t=document.getElementById("ttl").value;var p=new URLSearchParams();if(n)p.set("n",n);p.set("c",c);if(t&&t!=="' + DEFAULT_TTL + '")p.set("ttl",t);location.href="/?"+p.toString();return false}</script>\n' +
+'<script>\n' +
+'var nInp=document.getElementById("n"),ns=document.getElementById("ns"),submitBtn=document.getElementById("submitBtn");\n' +
+'var checkTimer=null,lastChecked="",nameAvailable=null;\n' +
+'function setStatus(msg,cls){ns.textContent=msg;ns.className="name-status "+(cls||"")}\n' +
+'function checkName(){var v=nInp.value.trim().toLowerCase();if(!v){setStatus("","");nInp.classList.remove("err-border");nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/.test(v)){setStatus("格式无效：小写字母/数字/-，2-32 位，首尾非 -","err");nInp.classList.add("err-border");nameAvailable=false;return}setStatus("检查中…","pending");lastChecked=v;fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(nInp.value.trim().toLowerCase()!==v)return;if(!d.valid){setStatus("不可用：保留名或格式无效","err");nInp.classList.add("err-border");nameAvailable=false}else if(d.exists){setStatus("已被占用。如是你本人创建的，请使用当时拿到的编辑链接。","warn");nInp.classList.remove("err-border");nameAvailable=false}else{setStatus("✓ 可用","ok");nInp.classList.remove("err-border");nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +
+'nInp.addEventListener("input",function(){clearTimeout(checkTimer);checkTimer=setTimeout(checkName,300)});\n' +
+'if(nInp.value)checkName();\n' +
+'function go(e){e.preventDefault();var nameVal=nInp.value.trim();if(nameVal&&nameAvailable===false){ns.className="name-status err";nInp.focus();return false}var c=document.getElementById("c").value;var t=document.getElementById("ttl").value;var p=new URLSearchParams();if(nameVal)p.set("n",nameVal);p.set("c",c);if(t&&t!=="' + DEFAULT_TTL + '")p.set("ttl",t);location.href="/?"+p.toString();return false}\n' +
+'</script>\n' +
 '</body></html>';
   return html(body);
 }
 
 function resultPage(name, content, mode, ttlKey, editToken) {
-  // mode: "created" | "exists" | "updated"
+  // mode: "created" | "updated"
   const short = "https://" + name + "." + BASE_HOST;
   const editUrl = editToken ? (short + "/edit#t=" + editToken) : null;
   const link = isUrl(content);
@@ -172,7 +196,7 @@ function resultPage(name, content, mode, ttlKey, editToken) {
   const typeFg = link ? "#0369a1" : "#92400e";
   const allowed = link && isAllowedTarget(content);
   const typeLabel = link ? (allowed ? "302 直跳" : "302 需确认") : "笔记";
-  const header = mode === "created" ? "已创建" : mode === "updated" ? "已更新" : "已存在";
+  const header = mode === "updated" ? "已更新" : "已创建";
   const headerColor = mode === "updated" ? "#059669" : "#888";
   const targetLine = link
     ? ('目标：<a href="' + esc(content.trim()) + '">' + esc(content.trim().slice(0, 120)) + '</a>')
@@ -306,13 +330,6 @@ function editNotePage(sub, ttlKey) {
   return html(body, 200, { "cache-control": "no-store" });
 }
 
-function nonEditablePage(sub) {
-  const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>不可编辑</title>' +
-'<style>body{font-family:system-ui;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;color:#666;background:#fafafa;text-align:center;padding:2rem}@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#aaa}}a{color:inherit}.card{max-width:440px}</style>' +
-'</head><body><div class="card"><h1 style="margin:0 0 1rem">此笔记不支持编辑</h1><p style="line-height:1.6"><code>' + esc(sub) + '.' + BASE_HOST + '</code> 是在引入编辑功能之前创建的，没有编辑 token。<br><br>你可以 <a href="https://' + BASE_HOST + '/">创建一个新名字</a>。</p></div></body></html>';
-  return html(body, 403);
-}
-
 function notFoundPage(sub) {
   const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>404</title>' +
 '<style>body{font-family:system-ui;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;color:#666;background:#fafafa;text-align:center}@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#aaa}}a{color:inherit}</style>' +
@@ -321,6 +338,17 @@ function notFoundPage(sub) {
 }
 
 // ---------- handlers ----------
+
+async function handleExists(env, url) {
+  const n = (url.searchParams.get("n") || "").toLowerCase().trim();
+  const json = (obj) => new Response(JSON.stringify(obj), {
+    headers: { "content-type": "application/json;charset=utf-8", "cache-control": "no-store" },
+  });
+  if (!n) return json({ valid: false, reason: "empty" });
+  if (!NAME_RE.test(n) || RESERVED.has(n)) return json({ valid: false, reason: "invalid" });
+  const existing = await env.NOTES.get("n:" + n);
+  return json({ valid: true, exists: existing !== null });
+}
 
 async function handleCreate(req, env, url) {
   let name = (url.searchParams.get("n") || "").toLowerCase().trim();
@@ -357,7 +385,15 @@ async function handleCreate(req, env, url) {
 
   const key = "n:" + name;
   const existing = await env.NOTES.get(key);
-  if (existing !== null) return resultPage(name, existing, "exists", null, null);
+  if (existing !== null) {
+    // 同名冲突 → 返回编辑器与内联错误，保留用户刚刚输入的内容
+    return editorPage({
+      prefillContent: content,
+      prefillName: name,
+      prefillTtl: ttlKey,
+      errorName: "“" + name + "” 已被占用，换一个名字。如是你本人创建的，请直接使用当时的编辑链接。",
+    });
+  }
 
   const token = genToken();
   const tokenHash = await sha256Base64Url(token);
@@ -392,7 +428,7 @@ async function handleEdit(req, env, sub, url) {
   const ttlSec = TTL_OPTIONS[ttlKey];
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};
   await env.NOTES.put("n:" + sub, content, putOpts);
-  await env.NOTES.put("m:" + sub, metaRaw, putOpts); // 刷新 meta TTL
+  await env.NOTES.put("m:" + sub, metaRaw, putOpts);
   return resultPage(sub, content, "updated", ttlKey, null);
 }
 
@@ -401,17 +437,14 @@ async function handleSubdomain(req, env, host, url) {
   const sub = host.slice(0, -(BASE_HOST.length + 1));
   if (!NAME_RE.test(sub) || RESERVED.has(sub)) return notFoundPage(sub);
 
-  // 编辑保存（在 sub 上以 ?edit=<token>&c=<new> 触发）
   if (url.searchParams.has("edit")) return handleEdit(req, env, sub, url);
 
-  // /edit -> 编辑器页面（有 meta 才能编）
   if (pathname === "/edit") {
     const metaRaw = await env.NOTES.get("m:" + sub);
     const existing = await env.NOTES.get("n:" + sub);
     if (existing === null) return notFoundPage(sub);
-    if (!metaRaw) return nonEditablePage(sub);
     let meta = {};
-    try { meta = JSON.parse(metaRaw); } catch {}
+    try { meta = metaRaw ? JSON.parse(metaRaw) : {}; } catch {}
     const ttlKey = TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL;
     return editNotePage(sub, ttlKey);
   }
@@ -445,6 +478,7 @@ export default {
     const url = new URL(req.url);
     const host = url.hostname.toLowerCase();
     if (host === BASE_HOST) {
+      if (url.pathname === "/exists") return handleExists(env, url);
       if (url.pathname === "/" || url.pathname === "") {
         if (url.searchParams.has("c") || url.searchParams.has("n")) return handleCreate(req, env, url);
         return editorPage();

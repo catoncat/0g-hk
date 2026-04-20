@@ -311,69 +311,80 @@ function resultPage(name, content, mode, ttlKey, editToken) {
   const link = isUrl(content);
   const typeClass = link ? "link" : "note";
   const allowed = link && isAllowedTarget(content);
-  const typeLabel = link ? (allowed ? "302 直跳" : "302 需确认") : "笔记";
+  const typeLabel = link ? (allowed ? "302 直跳" : "需确认") : "笔记";
   const header = mode === "updated" ? "已更新" : "已创建";
-  const headerColor = mode === "updated" ? "#059669" : "#888";
-  const targetLine = link
-    ? ('目标：<a href="' + esc(content.trim()) + '">' + esc(content.trim().slice(0, 120)) + '</a>')
-    : ('内容长度：' + content.length + ' 字符');
-  const ttlLine = ttlKey ? ('<br>保留：' + ttlKey) : '';
-  const qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=" + encodeURIComponent(short);
+  const ttlMap = { "1h": "1 小时", "1d": "1 天", "7d": "7 天" };
+  const ttlDisplay = ttlKey ? (ttlMap[ttlKey] || ttlKey) : null;
+  const qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + encodeURIComponent(short);
+  const hostForHint = link ? ((parseUrlSafe(content) || {}).hostname || '') : '';
 
+  // Compact edit card: title on top, inline [input + copy] row, one-line subtitle below.
   const editBlock = editUrl ? (
     '<div class="edit-card">\n' +
-    '<div class="edit-title">⚠️ 编辑链接只显示本次请立即复制保存</div>\n' +
-    '<div class="edit-sub">拿到链接的人可修改此名字的内容。关掉本页就拿不回来了。</div>\n' +
+    '<div class="ec-h">🔑 编辑链接 · 仅此一次</div>\n' +
     '<div class="url"><input id="eu" value="' + esc(editUrl) + '" readonly onclick="this.select()"><button class="secondary" onclick="copyEdit(this)">复制</button></div>\n' +
+    '<div class="ec-s">拿到这个链接的人可以修改 <code>' + esc(name) + '</code> 的内容，关掉本页就找不回来了。</div>\n' +
     '</div>\n'
   ) : '';
 
-  // Whitelist hint: when target is a URL but not in the allowlist, visitors see an interstitial first.
-  const hostForHint = link ? ((parseUrlSafe(content) || {}).hostname || '') : '';
+  // Whitelist hint — single compact line. Only shown for links.
   const whitelistBlock = (link && !allowed)
-    ? ('<div class="wl-card">\n' +
-       '<div class="wl-title">🛡️ 访问者会先看到跳转确认页</div>\n' +
-       '<div class="wl-sub"><code>' + esc(hostForHint) + '</code> 不在信任域名白名单内。为了防止短链被滥用做钓鱼，访问者点链接时会先停在一个提示页，确认目标后再继续。</div>\n' +
-       '</div>\n')
+    ? ('<div class="wl wl-warn"><span class="wl-ic">🛡️</span><span><code>' + esc(hostForHint) + '</code> 不在白名单，访问者会先看到跳转确认页。</span></div>\n')
     : (link && allowed)
-      ? ('<div class="wl-card wl-ok">\n' +
-         '<div class="wl-title">✓ 访问者会直接 302 跳转</div>\n' +
-         '<div class="wl-sub"><code>' + esc(hostForHint) + '</code> 在信任域名白名单内，浏览器会直接跳到目标。</div>\n' +
-         '</div>\n')
+      ? ('<div class="wl wl-ok"><span class="wl-ic">✓</span><span><code>' + esc(hostForHint) + '</code> 在白名单，访问者直接 302 跳转。</span></div>\n')
       : '';
+
+  // Meta rows — 2-col definition grid instead of loose br-separated lines.
+  const targetRow = link
+    ? ('<dt>目标</dt><dd><a href="' + esc(content.trim()) + '" rel="noopener">' + esc(content.trim().slice(0, 80)) + (content.trim().length > 80 ? '…' : '') + '</a></dd>')
+    : ('<dt>长度</dt><dd>' + content.length + ' 字符</dd>');
+  const ttlRow = ttlDisplay ? ('<dt>保留</dt><dd>' + esc(ttlDisplay) + '</dd>') : '';
+  const metaHtml = '<dl class="meta">' +
+    '<dt>原文</dt><dd><a href="' + esc(short) + '/raw">/raw</a></dd>' +
+    targetRow + ttlRow +
+    '</dl>';
 
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + header + ' · ' + esc(name) + '</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
-'.card{max-width:560px}h1{font-size:.8rem;color:' + headerColor + ';font-weight:500;margin-bottom:1rem;text-transform:uppercase;letter-spacing:.08em;display:flex;gap:.5rem;align-items:center}\n' +
-'.type{padding:.15rem .5rem;border-radius:4px;font-size:.7rem;font-weight:600}\n' +
+'.card{max-width:520px}\n' +
+'h1{font-size:1.05rem;font-weight:600;margin:0 0 1rem;display:flex;gap:.5rem;align-items:center;letter-spacing:-.005em}\n' +
+'h1 .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);display:inline-block;flex:0 0 auto}\n' +
+'.type{padding:.12rem .5rem;border-radius:999px;font-size:.7rem;font-weight:600;letter-spacing:.01em}\n' +
 '.type.link{background:#e0f2fe;color:#0369a1}\n' +
 '.type.note{background:#fef3c7;color:#92400e}\n' +
 '@media(prefers-color-scheme:dark){.type.link{background:rgba(14,165,233,.18);color:#7dd3fc}.type.note{background:rgba(251,191,36,.18);color:#fcd34d}}\n' +
-'.url{display:flex;gap:.5rem;margin-bottom:1rem}\n' +
-'.url input{flex:1;font-family:var(--mono);font-size:1rem;padding:.6rem .85rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)}\n' +
-'.url button{padding:.6rem 1rem;font-size:.9rem}\n' +
-'.edit-card{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:1rem 1.1rem;margin:1rem 0 1.25rem}\n' +
-'.edit-card .edit-title{font-size:.9rem;font-weight:600;color:#92400e;margin-bottom:.25rem}\n' +
-'.edit-card .edit-sub{font-size:.78rem;color:#78716c;margin-bottom:.7rem;line-height:1.5}\n' +
-'@media(prefers-color-scheme:dark){.edit-card{background:#1e1a0f;border-color:#78350f}.edit-card .edit-title{color:#fbbf24}.edit-card .edit-sub{color:#a8a29e}}\n' +
-'.wl-card{margin:0 0 1rem;padding:.75rem .95rem;border-radius:10px;border:1px solid var(--warn-border);background:var(--warn-bg);color:var(--warn-fg)}\n' +
-'.wl-card.wl-ok{border-color:rgba(5,150,105,.35);background:rgba(5,150,105,.08);color:#047857}\n' +
-'@media(prefers-color-scheme:dark){.wl-card.wl-ok{color:#34d399;background:rgba(5,150,105,.12);border-color:rgba(52,211,153,.3)}}\n' +
-'.wl-card .wl-title{font-size:.85rem;font-weight:600;margin-bottom:.2rem}\n' +
-'.wl-card .wl-sub{font-size:.78rem;line-height:1.55;opacity:.9}\n' +
-'.wl-card code{font-family:var(--mono);background:rgba(128,128,128,.15);padding:.05rem .3rem;border-radius:3px}\n' +
-'.meta{font-size:.85rem;color:var(--muted);margin-top:1rem;line-height:1.8}.meta a{color:inherit}\n' +
-'.qr{margin-top:1.5rem;display:flex;justify-content:center}.qr img{border-radius:8px;background:#fff;padding:8px}\n' +
+'.url{display:flex;gap:.5rem;margin-bottom:0}\n' +
+'.url input{flex:1;font-family:var(--mono);font-size:.95rem;padding:.6rem .8rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);min-height:40px}\n' +
+'.url button{padding:.55rem 1rem;font-size:.88rem;min-height:40px}\n' +
+'.primary-url{margin-bottom:1rem}\n' +
+'.edit-card{margin:0 0 1rem;padding:.85rem .95rem;border-radius:10px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-left:3px solid var(--warn)}\n' +
+'.edit-card .ec-h{font-size:.82rem;font-weight:600;margin-bottom:.55rem;color:var(--warn)}\n' +
+'.edit-card .url{margin-bottom:.55rem}\n' +
+'.edit-card .ec-s{font-size:.76rem;color:var(--muted);line-height:1.5}\n' +
+'.edit-card code{font-family:var(--mono);background:rgba(128,128,128,.15);padding:.02rem .28rem;border-radius:3px;font-size:.82em}\n' +
+'.wl{display:flex;gap:.5rem;align-items:flex-start;margin:0 0 1rem;padding:.6rem .8rem;border-radius:8px;font-size:.8rem;line-height:1.5}\n' +
+'.wl .wl-ic{flex:0 0 auto;font-size:.9rem;line-height:1.4}\n' +
+'.wl code{font-family:var(--mono);background:rgba(128,128,128,.18);padding:.02rem .28rem;border-radius:3px;font-size:.9em}\n' +
+'.wl.wl-warn{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.22);color:var(--text)}\n' +
+'.wl.wl-warn code{color:var(--warn)}\n' +
+'.wl.wl-ok{background:rgba(5,150,105,.06);border:1px solid rgba(5,150,105,.22);color:var(--text)}\n' +
+'.wl.wl-ok .wl-ic{color:var(--ok);font-weight:700}\n' +
+'.meta{margin:1rem 0 0;padding:.85rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--surface);display:grid;grid-template-columns:4rem 1fr;gap:.45rem .85rem;font-size:.83rem;line-height:1.5}\n' +
+'.meta dt{color:var(--faint);font-weight:500}\n' +
+'.meta dd{color:var(--text);word-break:break-all;overflow:hidden;text-overflow:ellipsis}\n' +
+'.meta a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--border-strong)}\n' +
+'.meta a:hover{border-bottom-style:solid}\n' +
+'.qr{margin:1.25rem auto 0;width:fit-content;padding:8px;border-radius:10px;background:#fff;border:1px solid var(--border)}\n' +
+'.qr img{display:block;width:120px;height:120px}\n' +
 '</style></head><body>\n' +
-'<div class="card">\n' +
-'<h1>' + header + ' <span class="type ' + typeClass + '">' + typeLabel + '</span></h1>\n' +
-'<div class="url"><input id="u" value="' + esc(short) + '" readonly onclick="this.select()"><button onclick="copyShort(this)">复制</button></div>\n' +
- editBlock + whitelistBlock +
-'<div class="meta">访问：<a href="' + esc(short) + '">' + esc(short) + '</a><br>原文：<a href="' + esc(short) + '/raw">' + esc(short) + '/raw</a><br>' + targetLine + ttlLine + '</div>\n' +
-'<div class="qr"><img alt="QR" src="' + esc(qrSrc) + '" width="160" height="160" loading="lazy"></div>\n' +
+'<div class="wrap"><div class="card">\n' +
+'<h1><span class="dot"></span>' + header + '<span class="type ' + typeClass + '">' + typeLabel + '</span></h1>\n' +
+'<div class="url primary-url"><input id="u" value="' + esc(short) + '" readonly onclick="this.select()"><button onclick="copyShort(this)">复制</button></div>\n' +
+ whitelistBlock + editBlock + metaHtml + '\n' +
+'<div class="qr"><img alt="QR" src="' + esc(qrSrc) + '" width="120" height="120" loading="lazy"></div>\n' +
  footerHtml() + '\n' +
-'</div>\n' +
+'</div></div>\n' +
 '<script>function copyShort(b){navigator.clipboard.writeText(document.getElementById("u").value).then(function(){b.textContent="已复制";setTimeout(function(){b.textContent="复制"},1500)})}function copyEdit(b){navigator.clipboard.writeText(document.getElementById("eu").value).then(function(){b.textContent="已复制";setTimeout(function(){b.textContent="复制"},1500)})}</script>\n' +
 '</body></html>';
   return html(body);

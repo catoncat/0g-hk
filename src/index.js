@@ -411,6 +411,121 @@ function wantsJson(req, url) {
   return accept.includes("application/json") && !accept.includes("text/html");
 }
 
+// Heuristic: does this look like a real browser request?
+// Used to decide whether GET / should serve the HTML homepage or a plain-text manual.
+function isBrowserRequest(req) {
+  const accept = (req.headers.get("accept") || "").toLowerCase();
+  // Real browsers always put text/html in Accept (usually first).
+  return accept.includes("text/html");
+}
+
+function llmsTextResponse() {
+  const body = llmsText();
+  return new Response(body, {
+    status: 200,
+    headers: {
+      "content-type": "text/plain;charset=utf-8",
+      "cache-control": "public, max-age=300",
+      "access-control-allow-origin": "*",
+      "x-robots-tag": "all",
+    },
+  });
+}
+
+function llmsText() {
+  return [
+    "# 0g.hk — short links & text notes with speakable names",
+    "",
+    "You (AI agent / script / curl) got this plain-text manual instead of the HTML homepage",
+    "because your Accept header did not include text/html. Humans see a web UI at https://0g.hk.",
+    "",
+    "## What this is",
+    "",
+    "Turn any text or URL into a readable subdomain: https://<name>.0g.hk",
+    "- If content is a URL → 302 redirect when the subdomain is visited.",
+    "- Otherwise → serves as a short text note (with a simple viewer).",
+    "- TTL capped at 7 days. Use renew to extend before expiry.",
+    "",
+    "## Create (POST https://0g.hk/)",
+    "",
+    "Minimal (plain text body, random name, default ttl=7d):",
+    "  curl -sS -X POST https://0g.hk/ \\",
+    "    -H 'Accept: application/json' \\",
+    "    -H 'Content-Type: text/plain' \\",
+    "    --data-binary 'hello world'",
+    "",
+    "JSON body (choose your own subdomain):",
+    "  curl -sS -X POST https://0g.hk/ \\",
+    "    -H 'Content-Type: application/json' -H 'Accept: application/json' \\",
+    "    -d '{\"content\":\"https://example.com\",\"name\":\"my-link\",\"ttl\":\"7d\"}'",
+    "",
+    "Fields:",
+    "  content (required) — text (<=8KB) or http(s) URL (<=2KB).",
+    "  name    (optional) — subdomain [a-z0-9-], 2–32 chars, endpoints alnum. Random 6 chars if omitted.",
+    "  ttl     (optional) — one of: 1h, 1d, 7d. Default: 7d.",
+    "",
+    "Response (JSON) includes:",
+    "  shortUrl, rawUrl, editToken, editUrl, ttl, createdAt, expiresAt, target, contentLength.",
+    "  SAVE editToken — it is the ONLY way to edit or renew later, and is never shown again.",
+    "",
+    "Shortcut (one-line output — get just the short URL):",
+    "  curl -sS -X POST 'https://0g.hk/?n=my-link' \\",
+    "    -H 'Content-Type: text/plain' \\",
+    "    --data-binary 'https://example.com' \\",
+    "    -D - -o /dev/null | awk 'tolower($1)==\"x-short-url:\"{print $2}'",
+    "",
+    "## Read (GET https://<name>.0g.hk/)",
+    "",
+    "  curl -sSL https://<name>.0g.hk/          # follows redirect for URL notes",
+    "  curl -sS  https://<name>.0g.hk/raw       # raw content (no redirect, no HTML)",
+    "  curl -sS  https://<name>.0g.hk/?format=json  # full metadata + content",
+    "",
+    "Useful response headers: X-Kind (url|text), X-Ttl, X-Expires-At, X-Target, X-Created-At.",
+    "",
+    "## Edit / change TTL / renew (POST https://<name>.0g.hk/?edit=<token>)",
+    "",
+    "All three fields are optional. Every edit resets the expiry window to now + ttl.",
+    "",
+    "  # change content (ttl stays, window resets)",
+    "  curl -sS -X POST 'https://<name>.0g.hk/?edit=TOKEN' \\",
+    "    -H 'Content-Type: text/plain' --data-binary 'new content'",
+    "",
+    "  # change ttl (content stays, window resets)",
+    "  curl -sS -X POST 'https://<name>.0g.hk/?edit=TOKEN&ttl=1d'",
+    "",
+    "  # pure renew (content+ttl stay, window resets)",
+    "  curl -sS -X POST 'https://<name>.0g.hk/?edit=TOKEN&renew=1'",
+    "",
+    "## Check name availability",
+    "",
+    "  curl -sS 'https://0g.hk/exists?n=my-link'",
+    "  # -> { \"valid\": true|false, \"exists\": true|false }",
+    "",
+    "## Rules",
+    "",
+    "- Rate limit: 10 req/min per IP (shared between create + edit).",
+    "- URL redirects are restricted to an allowlist of hosts (github.com, x.com, youtube.com, …).",
+    "  Non-allowlisted URLs are stored as text notes instead of redirects.",
+    "- Reserved subdomains: www, api, new, admin, edit, raw, n, app, abuse, report, exists.",
+    "- Data is deleted on expiry; no undelete.",
+    "",
+    "## Error format",
+    "",
+    "All errors when Accept: application/json is sent come back as:",
+    "  { \"ok\": false, \"error\": { \"code\": \"<code>\", \"message\": \"...\", ... } }",
+    "Common codes: invalid_name, reserved_name, name_taken, invalid_ttl, rate_limited,",
+    "malformed_url, text_too_long, url_too_long, missing_token, invalid_token, not_editable,",
+    "not_found.",
+    "",
+    "## Full docs",
+    "",
+    "https://github.com/catoncat/0g-hk/blob/main/docs/API.md",
+    "Source:          https://github.com/catoncat/0g-hk",
+    "Plain-text copy: https://0g.hk/llms.txt",
+    "",
+  ].join("\n");
+}
+
 function jsonResponse(obj, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(obj), {
     status,
@@ -784,10 +899,18 @@ export default {
 
     if (host === BASE_HOST) {
       if (url.pathname === "/exists") return handleExists(env, url);
+      if (url.pathname === "/llms.txt" || url.pathname === "/robots.txt" && url.searchParams.has("llms")) {
+        return llmsTextResponse();
+      }
       if (url.pathname === "/" || url.pathname === "") {
         if (req.method === "POST" || req.method === "PUT" ||
             url.searchParams.has("c") || url.searchParams.has("n")) {
           return handleCreate(req, env, url);
+        }
+        // Content negotiation: non-browser clients (curl, AI agents, scripts) get
+        // a plain-text usage manual instead of the HTML homepage.
+        if (req.method === "GET" && !isBrowserRequest(req)) {
+          return llmsTextResponse();
         }
         return editorPage();
       }

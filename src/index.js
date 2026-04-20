@@ -363,7 +363,7 @@ const SECURITY_HEADERS = {
   "permissions-policy": "geolocation=(), microphone=(), camera=(), payment=()",
   "content-security-policy": [
     "default-src 'self'",
-    "img-src 'self' data:",
+    "img-src 'self' data: https://api.qrserver.com",
     "style-src 'self' 'unsafe-inline'",
     "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
     "frame-src https://challenges.cloudflare.com",

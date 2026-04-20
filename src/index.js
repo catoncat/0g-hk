@@ -290,14 +290,14 @@ function resultPage(name, content, mode, ttlKey, editToken) {
 function notePage(sub, content) {
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · ' + BASE_HOST + '</title>\n' +
-'<style>:root{color-scheme:light dark}*{box-sizing:border-box;margin:0}\n' +
-'body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;padding:2rem;max-width:760px;margin:0 auto;line-height:1.6;background:#fafafa;color:#111}\n' +
-'@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#eee}pre{background:#161616;border-color:#333}header{border-color:#333}.foot{color:#777}}\n' +
-'header{display:flex;justify-content:space-between;align-items:center;padding-bottom:.75rem;margin-bottom:1.5rem;border-bottom:1px solid #e5e5e5;font-size:.85rem;color:#888}\n' +
-'header a{color:inherit;text-decoration:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}\n' +
-'pre{white-space:pre-wrap;word-wrap:break-word;background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:1.25rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.95rem;line-height:1.55}\n' +
-'button{padding:.35rem .75rem;border:1px solid #ddd;border-radius:6px;background:transparent;cursor:pointer;font-size:.8rem;color:inherit}button:hover{background:rgba(128,128,128,.12)}\n' +
-'.foot{margin-top:1.5rem;text-align:center;font-size:.8rem;color:#888}.foot a{color:inherit;text-decoration:none;margin:0 .3rem}\n' +
+'<style>:root{color-scheme:light dark}*{box-sizing:border-box;margin:0;padding:0}html{-webkit-text-size-adjust:100%}\n' +
+'body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:16px;padding:clamp(1rem,4vw,2rem) clamp(.85rem,4vw,2rem);padding-bottom:max(clamp(1rem,4vw,2rem),env(safe-area-inset-bottom));max-width:760px;margin:0 auto;line-height:1.6;background:#fafafa;color:#111}\n' +
+'@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#eee}pre{background:#141414;border-color:#262626}header{border-color:#262626}.foot{color:#737373}}\n' +
+'header{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding-bottom:.75rem;margin-bottom:1.25rem;border-bottom:1px solid #e5e5e5;font-size:.85rem;color:#888}\n' +
+'header a{color:inherit;text-decoration:none;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;flex:1;min-width:0}\n' +
+'pre{white-space:pre-wrap;word-wrap:break-word;background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:clamp(1rem,3vw,1.25rem);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.95rem;line-height:1.6}\n' +
+'button{padding:.5rem .85rem;min-height:36px;border:1px solid #ddd;border-radius:6px;background:transparent;cursor:pointer;font-size:.82rem;color:inherit;font-family:inherit;flex:0 0 auto;-webkit-tap-highlight-color:transparent}@media(hover:hover){button:hover{background:rgba(128,128,128,.12)}}\n' +
+'.foot{margin-top:1.5rem;text-align:center;font-size:.8rem;color:#888}.foot a{color:inherit;text-decoration:none;margin:0 .5rem;padding:.2rem 0;display:inline-block}\n' +
 '</style></head><body>\n' +
 '<header><a href="/raw">' + esc(sub) + '.' + BASE_HOST + '</a>\n' +
 '<button onclick="navigator.clipboard.writeText(document.getElementById(\'c\').innerText).then(()=>{this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1200)})">复制全文</button></header>\n' +
@@ -313,18 +313,19 @@ function interstitialPage(sub, target) {
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>即将跳转 · ' + BASE_HOST + '</title>\n' +
 '<meta name="robots" content="noindex">\n' +
-'<style>:root{color-scheme:light dark}*{box-sizing:border-box;margin:0}\n' +
-'body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;background:#fafafa}\n' +
-'@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#eee}.card{background:#161616;border-color:#333}.target{background:#222;border-color:#444}.host{color:#fcd34d}.foot{color:#777}}\n' +
-'.card{max-width:560px;width:100%;background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:2rem;box-shadow:0 4px 20px rgba(0,0,0,.04);text-align:center}\n' +
-'h1{font-size:1.1rem;margin-bottom:.5rem}\n' +
-'.warn{font-size:.85rem;color:#92400e;margin-bottom:1rem}\n' +
-'.host{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.1rem;font-weight:600;color:#b45309;word-break:break-all}\n' +
-'.target{background:#f5f5f5;border:1px solid #e5e5e5;border-radius:8px;padding:.75rem 1rem;margin:1rem 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;text-align:left;word-break:break-all;line-height:1.5}\n' +
-'a.btn{display:inline-block;margin-top:.5rem;padding:.7rem 1.5rem;border-radius:8px;background:#111;color:#fff;text-decoration:none;font-size:.95rem}\n' +
-'a.btn:hover{background:#333}\n' +
-'@media(prefers-color-scheme:dark){a.btn{background:#fff;color:#000}a.btn:hover{background:#ddd}}\n' +
-'.foot{margin-top:1.5rem;font-size:.8rem;color:#888}.foot a{color:inherit;text-decoration:none;margin:0 .3rem}\n' +
+'<style>:root{color-scheme:light dark}*{box-sizing:border-box;margin:0;padding:0}html{-webkit-text-size-adjust:100%}\n' +
+'body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:16px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:clamp(1rem,4vw,2rem);padding-bottom:max(clamp(1rem,4vw,2rem),env(safe-area-inset-bottom));background:#fafafa;color:#111}\n' +
+'@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#ededed}.card{background:#141414;border-color:#262626}.target{background:#1a1a1a;border-color:#333}.host{color:#fbbf24}.foot{color:#737373}}\n' +
+'.card{max-width:560px;width:100%;background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:clamp(1.25rem,4vw,2rem);text-align:center}\n' +
+'h1{font-size:clamp(1rem,3vw,1.15rem);margin-bottom:.5rem;font-weight:600}\n' +
+'.warn{font-size:.88rem;color:#92400e;margin-bottom:1rem;line-height:1.55}\n' +
+'@media(prefers-color-scheme:dark){.warn{color:#fbbf24}}\n' +
+'.host{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:1.05rem;font-weight:600;color:#b45309;word-break:break-all;line-height:1.4}\n' +
+'.target{background:#f5f5f5;border:1px solid #e5e5e5;border-radius:8px;padding:.75rem 1rem;margin:1rem 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;text-align:left;word-break:break-all;line-height:1.5}\n' +
+'a.btn{display:inline-block;margin-top:.5rem;padding:.85rem 1.75rem;min-height:48px;border-radius:8px;background:#111;color:#fff;text-decoration:none;font-size:1rem;font-weight:500;-webkit-tap-highlight-color:transparent}\n' +
+'@media(hover:hover){a.btn:hover{opacity:.88}}\n' +
+'@media(prefers-color-scheme:dark){a.btn{background:#fff;color:#000}}\n' +
+'.foot{margin-top:1.5rem;font-size:.8rem;color:#888}.foot a{color:inherit;text-decoration:none;margin:0 .5rem;padding:.2rem 0;display:inline-block}\n' +
 '</style></head><body>\n' +
 '<div class="card">\n' +
 '<h1>即将离开 ' + BASE_HOST + '</h1>\n' +
@@ -379,7 +380,7 @@ function editNotePage(sub, ttlKey) {
 
 function notFoundPage(sub) {
   const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>404</title>' +
-'<style>body{font-family:system-ui;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;color:#666;background:#fafafa;text-align:center}@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#aaa}}a{color:inherit}</style>' +
+'<style>body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:16px;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:clamp(1rem,4vw,2rem);color:#666;background:#fafafa;text-align:center;line-height:1.6}@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#a3a3a3}}a{color:inherit;padding:.25rem .1rem;display:inline-block}</style>' +
 '</head><body><div><h1 style="margin:0;font-size:3rem">404</h1><p><code>' + esc(sub) + '</code> 不存在，<a href="https://' + BASE_HOST + '/">去创建 →</a></p></div></body></html>';
   return html(body, 404);
 }

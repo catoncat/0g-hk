@@ -171,8 +171,16 @@ function editorPage(opts) {
   const prefillTtl = opts.prefillTtl || DEFAULT_TTL;
   const errorName = opts.errorName || "";
   const alertTop = opts.alertTop || "";
-  const advOpen = (prefillName || errorName || (prefillTtl && prefillTtl !== DEFAULT_TTL)) ? ' open' : '';
-  const ttlOpts = Object.keys(TTL_OPTIONS).map((k) => '<option' + (k === prefillTtl ? ' selected' : '') + '>' + k + '</option>').join('');
+  // UI exposes a minimal TTL set; API still accepts all TTL_OPTIONS keys.
+  const UI_TTLS = [
+    { key: '1d', label: '1天' },
+    { key: '7d', label: '7天' },
+  ];
+  const ttlSelected = UI_TTLS.some((o) => o.key === prefillTtl) ? prefillTtl : DEFAULT_TTL;
+  const ttlChips = UI_TTLS.map((o) =>
+    '<label class="chip"><input type="radio" name="ttl" value="' + o.key + '"' +
+    (o.key === ttlSelected ? ' checked' : '') + '><span>' + o.label + '</span></label>'
+  ).join('');
 
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8">' +
@@ -182,72 +190,82 @@ function editorPage(opts) {
 '<meta name="description" content="把一段文字或链接变成 xxx.0g.hk。无账号、一次 GET 完成。">' +
 '<title>' + BASE_HOST + ' — 临时笔记 · 短链</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
-'.brand{font-family:var(--mono);font-size:clamp(1.5rem,5.5vw,1.9rem);font-weight:600;letter-spacing:-.02em;margin-bottom:.4rem}\n' +
+'.brand{font-family:var(--mono);font-size:clamp(1.6rem,6vw,2.1rem);font-weight:600;letter-spacing:-.02em;margin-bottom:.5rem}\n' +
 '.brand .dot{color:#10b981}\n' +
-'.tagline{color:var(--muted);font-size:1rem;line-height:1.6;margin-bottom:1.5rem}\n' +
-'.tagline code{font-size:.9em}\n' +
-'.tagline a{color:inherit;text-decoration:underline;text-underline-offset:2px}\n' +
-'.cta{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}\n' +
-'.cta button{width:100%;min-height:50px;font-size:1.02rem}\n' +
-'.type-hint{font-size:.8rem;color:var(--faint);font-family:var(--mono);text-align:center;min-height:1.2em;letter-spacing:.02em}\n' +
-'details.adv{margin-top:1.25rem;border-top:1px solid var(--border);padding-top:1rem}\n' +
-'details.adv>summary{cursor:pointer;list-style:none;font-size:.9rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;user-select:none;-webkit-tap-highlight-color:transparent;padding:.25rem 0;min-height:32px}\n' +
-'details.adv>summary::-webkit-details-marker{display:none}\n' +
-'details.adv>summary::before{content:"+";display:inline-flex;width:1em;justify-content:center;font-family:var(--mono);color:var(--faint)}\n' +
-'details.adv[open]>summary::before{content:"−"}\n' +
-'.adv-body{margin-top:.9rem;display:grid;gap:.9rem;grid-template-columns:1fr}\n' +
-'@media(min-width:560px){.adv-body{grid-template-columns:1fr 140px}}\n' +
-'.row{display:flex;gap:.4rem;align-items:stretch}.row input{flex:1;min-width:0}\n' +
-'.row .suffix{font-family:var(--mono);color:var(--faint);font-size:.9rem;display:flex;align-items:center;padding:0 .2rem;white-space:nowrap}\n' +
-'.name-status{display:block;font-size:.78rem;margin-top:.35rem;min-height:1.1em;color:var(--faint);line-height:1.45}\n' +
-'.name-status.ok{color:var(--ok)}.name-status.warn{color:var(--warn)}.name-status.err{color:var(--err)}\n' +
-'input.err-border{border-color:var(--err)!important}\n' +
-'.scenarios{margin-top:2rem}\n' +
-'.scenarios-title{font-size:.72rem;color:var(--faint);text-transform:uppercase;letter-spacing:.12em;margin-bottom:.9rem;font-weight:600;padding-left:.2rem}\n' +
-'.scn{display:grid;gap:.85rem;grid-template-columns:minmax(0,1fr)}\n' +
+'.tagline{color:var(--muted);font-size:clamp(1.05rem,3vw,1.2rem);line-height:1.5;margin-bottom:1.5rem;max-width:30ch}\n' +
+'.tagline code{font-size:.9em;font-family:var(--mono);background:rgba(128,128,128,.12);padding:.05rem .35rem;border-radius:4px}\n' +
+'textarea{min-height:5.5rem}@supports(field-sizing:content){textarea{field-sizing:content;min-height:4rem}}\n' +
+// Input bar: name + suffix + submit on one line.
+'.bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem;align-items:stretch;margin-top:.75rem}\n' +
+'.bar .name-wrap{display:flex;align-items:stretch;border:1px solid var(--border);border-radius:8px;background:var(--surface);overflow:hidden;min-width:0}\n' +
+'.bar .name-wrap:focus-within{border-color:var(--text)}\n' +
+'.bar input{flex:1;min-width:0;border:0;background:transparent;padding:0 .7rem;font:inherit;color:inherit;outline:0}\n' +
+'.bar .suffix{font-family:var(--mono);color:var(--faint);font-size:.92rem;display:flex;align-items:center;padding:0 .7rem 0 0;white-space:nowrap;flex-shrink:0}\n' +
+'.bar button{min-height:48px;padding:0 1.1rem;font-size:.98rem;white-space:nowrap}\n' +
+'.bar .name-wrap.err{border-color:var(--err)}\n' +
+// Meta row: name-status (left) + type-hint (right).
+'.meta{display:flex;justify-content:space-between;align-items:center;gap:.5rem;min-height:1.3em;margin-top:.45rem;font-size:.78rem;line-height:1.4}\n' +
+'.meta .name-status{color:var(--faint);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n' +
+'.meta .name-status.ok{color:var(--ok)}.meta .name-status.warn{color:var(--warn)}.meta .name-status.err{color:var(--err)}\n' +
+'.meta .type-hint{color:var(--faint);font-family:var(--mono);letter-spacing:.02em;flex-shrink:0}\n' +
+// TTL chip row.
+'.ttl-row{display:flex;gap:.5rem;align-items:center;margin-top:.9rem;font-size:.82rem;color:var(--muted);flex-wrap:wrap}\n' +
+'.ttl-row .lbl{color:var(--faint);font-size:.78rem}\n' +
+'.chip{position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent}\n' +
+'.chip input{position:absolute;opacity:0;pointer-events:none}\n' +
+'.chip span{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 .8rem;border:1px solid var(--border);border-radius:999px;font-size:.82rem;color:var(--muted);transition:all .12s;user-select:none}\n' +
+'@media(hover:hover){.chip:hover span{border-color:var(--muted)}}\n' +
+'.chip input:checked+span{background:var(--text);color:var(--bg);border-color:var(--text)}\n' +
+'.chip input:focus-visible+span{outline:2px solid var(--text);outline-offset:2px}\n' +
+// Scenarios.
+'.scn{display:grid;gap:.85rem;grid-template-columns:minmax(0,1fr);margin-top:2rem}\n' +
 '@media(min-width:760px){.scn{grid-template-columns:repeat(3,minmax(0,1fr))}}\n' +
 '.s-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;font-size:.88rem;line-height:1.55;display:flex;flex-direction:column;gap:.45rem;min-width:0}\n' +
 '.s-head{display:flex;gap:.5rem;align-items:baseline}\n' +
 '.s-emoji{font-size:1rem;line-height:1}\n' +
 '.s-title{font-weight:600;color:var(--text);font-size:.92rem}\n' +
-'.s-desc{color:var(--muted);font-size:.85rem;line-height:1.5}\n' +
+'.s-desc{color:var(--muted);font-size:.83rem;line-height:1.5}\n' +
 '.s-card pre{font-family:var(--mono);font-size:.76rem;background:rgba(128,128,128,.1);padding:.55rem .65rem;border-radius:6px;color:var(--text);overflow-x:auto;white-space:pre;line-height:1.55;margin-top:auto}\n' +
 '</style></head><body>\n' +
 '<div class="wrap">\n' +
 '<div class="card">\n' +
 '<div class="brand">0g<span class="dot">.</span>hk</div>\n' +
-'<div class="tagline">把一段文字或链接变成 <code>xxx.0g.hk</code>。<br>无账号、无表单。有 <a href="https://github.com/catoncat/0g-hk/blob/main/docs/API.md">JSON API</a>。</div>\n' +
+'<div class="tagline">把文字或链接，变成你自己的 <code>xxx.0g.hk</code></div>\n' +
 (alertTop ? '<div class="alert-warn">' + alertTop + '</div>\n' : '') +
 '<form onsubmit="return go(event)">\n' +
 '<label for="c" class="sr">内容</label>' +
-'<textarea id="c" required autofocus placeholder="粘贴一段文字，或 https://…">' + esc(prefillContent) + '</textarea>\n' +
-'<div class="cta"><button type="submit" id="submitBtn">生成 →</button><span id="typeHint" class="type-hint"></span></div>\n' +
-'<details class="adv"' + advOpen + '><summary>自定义名字 · 保留时长</summary>\n' +
-'<div class="adv-body">\n' +
-'<div><label for="n">自定义名字（可选）</label><div class="row"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" inputmode="url" pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="例如 talk"' + (errorName ? ' class="err-border"' : '') + '><span class="suffix">.' + BASE_HOST + '</span></div><span id="ns" class="name-status' + (errorName ? ' err' : '') + '">' + esc(errorName) + '</span></div>\n' +
-'<div><label for="ttl">保留时长</label><select id="ttl">' + ttlOpts + '</select></div>\n' +
-'</div></details>\n' +
+'<textarea id="c" required autofocus rows="3" placeholder="粘贴文字，或 https://…">' + esc(prefillContent) + '</textarea>\n' +
+'<div class="bar">\n' +
+'<div class="name-wrap' + (errorName ? ' err' : '') + '" id="nw"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" inputmode="url" pattern="[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?" placeholder="留空自动分配" aria-label="自定义子域名"><span class="suffix">.' + BASE_HOST + '</span></div>' +
+'<button type="submit" id="submitBtn">生成 →</button>' +
+'</div>\n' +
+'<div class="meta"><span id="ns" class="name-status' + (errorName ? ' err' : '') + '">' + esc(errorName) + '</span><span id="typeHint" class="type-hint"></span></div>\n' +
+'<div class="ttl-row"><span class="lbl">保留</span>' + ttlChips + '</div>\n' +
 '</form>\n' +
 '</div>\n' +
-'<section class="scenarios" aria-label="典型用法">\n' +
-'<div class="scenarios-title">三种典型用法</div>\n' +
-'<div class="scn">\n' +
+'<section class="scn" aria-label="用法">\n' +
 '<div class="s-card"><div class="s-head"><span class="s-emoji">📋</span><span class="s-title">分享临时文本</span></div><div class="s-desc">剪贴板→一个可分享的 URL。</div><pre>pbpaste | curl -sS --data-binary @- 0g.hk/</pre></div>\n' +
 '<div class="s-card"><div class="s-head"><span class="s-emoji">🔗</span><span class="s-title">做个好记的短链</span></div><div class="s-desc">子域即资源，比随机哈希好记 10 倍。</div><pre>curl -d https://… \'0g.hk/?n=talk\'</pre></div>\n' +
 '<div class="s-card"><div class="s-head"><span class="s-emoji">🤖</span><span class="s-title">让 AI 帮你建</span></div><div class="s-desc">curl 主页直接返回说明书，AI 读完就会用。</div><pre>curl 0g.hk      # 纯文本手册\n# 然后跟 AI 说：\n# “用 0g.hk 给我建个短链”</pre></div>\n' +
-'</div></section>\n' +
+'</section>\n' +
  footerHtml() + '\n' +
 '</div>\n' +
 '<script>\n' +
-'var nInp=document.getElementById("n"),ns=document.getElementById("ns"),submitBtn=document.getElementById("submitBtn"),ta=document.getElementById("c"),th=document.getElementById("typeHint");\n' +
+'var nInp=document.getElementById("n"),nw=document.getElementById("nw"),ns=document.getElementById("ns"),submitBtn=document.getElementById("submitBtn"),ta=document.getElementById("c"),th=document.getElementById("typeHint");\n' +
 'var checkTimer=null,nameAvailable=null;\n' +
+'function setErr(on){if(on)nw.classList.add("err");else nw.classList.remove("err")}\n' +
 'function setStatus(msg,cls){ns.textContent=msg;ns.className="name-status "+(cls||"")}\n' +
-'function updateCta(){var v=ta.value.trim();if(!v){submitBtn.textContent="生成 →";th.textContent="";return}if(/^https?:\\/\\//i.test(v)){submitBtn.textContent="生成短链 →";th.textContent="检测到 URL · 将做成 302 短链"}else{submitBtn.textContent="生成笔记页 →";th.textContent=v.length+" 字 · 将做成笔记页"}}\n' +
+// Rotating placeholder hints that name is customizable.
+'var demos=["talk","q3-plan","read-me","demo","party","notes"],di=0;\n' +
+'function cyclePh(){if(document.activeElement===nInp||nInp.value)return;nInp.placeholder="留空自动 · 或起名如 "+demos[di=(di+1)%demos.length]}\n' +
+'setInterval(cyclePh,2200);cyclePh();\n' +
+'function updateCta(){var v=ta.value.trim();if(!v){submitBtn.textContent="生成 →";th.textContent="";return}if(/^https?:\\/\\//i.test(v)){submitBtn.textContent="生成短链 →";th.textContent="URL · 302 短链"}else{submitBtn.textContent="生成笔记 →";th.textContent=v.length+" 字 · 笔记页"}}\n' +
 'ta.addEventListener("input",updateCta);updateCta();\n' +
-'function checkName(){var v=nInp.value.trim().toLowerCase();if(!v){setStatus("","");nInp.classList.remove("err-border");nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/.test(v)){setStatus("格式：小写字母/数字/-，2–32 位，首尾非 -","err");nInp.classList.add("err-border");nameAvailable=false;return}setStatus("检查中…","pending");fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(nInp.value.trim().toLowerCase()!==v)return;if(!d.valid){setStatus("不可用：保留名或格式无效","err");nInp.classList.add("err-border");nameAvailable=false}else if(d.exists){setStatus("已被占用。如是你本人创建的，请用当时的编辑链接。","warn");nInp.classList.remove("err-border");nameAvailable=false}else{setStatus("✓ 可用","ok");nInp.classList.remove("err-border");nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +
+'function checkName(){var v=nInp.value.trim().toLowerCase();if(!v){setStatus("","");setErr(false);nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/.test(v)){setStatus("格式：小写字母/数字/-，2–32 位，首尾非 -","err");setErr(true);nameAvailable=false;return}setStatus("检查中…","pending");fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(nInp.value.trim().toLowerCase()!==v)return;if(!d.valid){setStatus("不可用：保留名或格式无效","err");setErr(true);nameAvailable=false}else if(d.exists){setStatus("已被占用（本人创建请用编辑链接）","warn");setErr(false);nameAvailable=false}else{setStatus("✓ 可用","ok");setErr(false);nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +
 'nInp.addEventListener("input",function(){clearTimeout(checkTimer);checkTimer=setTimeout(checkName,300)});\n' +
 'if(nInp.value)checkName();\n' +
-'function go(e){e.preventDefault();var nameVal=nInp.value.trim();if(nameVal&&nameAvailable===false){ns.className="name-status err";nInp.focus();return false}var c=ta.value;var t=document.getElementById("ttl").value;var p=new URLSearchParams();if(nameVal)p.set("n",nameVal);p.set("c",c);if(t&&t!=="' + DEFAULT_TTL + '")p.set("ttl",t);location.href="/?"+p.toString();return false}\n' +
+'function getTtl(){var r=document.querySelector(\'input[name="ttl"]:checked\');return r?r.value:"' + DEFAULT_TTL + '"}\n' +
+'function go(e){e.preventDefault();var nameVal=nInp.value.trim();if(nameVal&&nameAvailable===false){setErr(true);nInp.focus();return false}var c=ta.value;var t=getTtl();var p=new URLSearchParams();if(nameVal)p.set("n",nameVal);p.set("c",c);if(t&&t!=="' + DEFAULT_TTL + '")p.set("ttl",t);location.href="/?"+p.toString();return false}\n' +
 '</script>\n' +
 '</body></html>';
   return html(body);

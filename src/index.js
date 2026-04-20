@@ -920,7 +920,7 @@ export default {
       }
       if (url.pathname === "/" || url.pathname === "") {
         if (req.method === "POST" || req.method === "PUT" ||
-            url.searchParams.has("c") || url.searchParams.has("n")) {
+            url.searchParams.has("c")) {
           return handleCreate(req, env, url);
         }
         // Content negotiation: non-browser clients (curl, AI agents, scripts) get

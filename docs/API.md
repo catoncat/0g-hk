@@ -2,6 +2,24 @@
 
 工程友好的 HTTP 接口。所有路径 100% 向后兼容浏览器 HTML 路径；以下是 CLI / 脚本推荐用法。
 
+## 总览
+
+| 路径 | 行为 |
+|---|---|
+| `POST 0g.hk/` | 创建笔记 / 短链 |
+| `GET  0g.hk/` (浏览器) | HTML 首页 + 编辑器 |
+| `GET  0g.hk/` (curl / AI / 非浏览器 UA) | 纯文本 usage 手册（content negotiation） |
+| `GET  0g.hk/?n=foo` | HTML 编辑器，预填子域名 |
+| `GET  0g.hk/?c=...[&n=][&ttl=]` | 浏览器快捷创建 |
+| `GET  0g.hk/llms.txt` | 稳定的纯文本 usage 手册（同上，但显式） |
+| `GET  0g.hk/exists?n=foo` | 名字可用性校验 |
+| `GET  <sub>.0g.hk/` | 302 / 跳转中间页 / 笔记页 |
+| `GET  <sub>.0g.hk/raw` | 原文 + metadata header |
+| `GET  <sub>.0g.hk/edit` | 编辑器 UI |
+| `POST <sub>.0g.hk/?edit=tk` | 编辑 / 改 TTL / 续期 |
+
+**AI 友好**：`curl 0g.hk` 拿到的是纯文本手册，不是 HTML。所以告诉 AI「去 `0g.hk` 看说明书然后帮我建一个 `foo`」它能自己走通。
+
 ## 约定
 
 - **Opt-in JSON**：请求加 `Accept: application/json` 或 query 参数 `?format=json` → 响应即 JSON。否则走 HTML。

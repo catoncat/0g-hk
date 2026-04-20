@@ -928,7 +928,10 @@ export default {
         if (req.method === "GET" && !isBrowserRequest(req)) {
           return llmsTextResponse();
         }
-        return editorPage();
+        return editorPage({
+          prefillName: (url.searchParams.get("n") || "").toLowerCase().trim(),
+          prefillContent: url.searchParams.get("c") || "",
+        });
       }
       if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404);
       return new Response("Not found", { status: 404 });

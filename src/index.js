@@ -152,8 +152,15 @@ const COMMON_CSS = [
 ].join("\n");
 
 function footerHtml() {
-  return '<div class="foot"><a href="https://' + BASE_HOST + '/">+ 再创建</a> · <a href="https://github.com/catoncat/0g-hk">GitHub</a> · <a href="https://github.com/catoncat/0g-hk/blob/main/docs/API.md">API</a> · <a href="mailto:' + ABUSE_EMAIL + '?subject=Report%20' + BASE_HOST + '">举报滥用</a></div>';
+  return '<div class="foot"><a href="https://github.com/catoncat/0g-hk">GitHub</a> · <a href="https://github.com/catoncat/0g-hk/blob/main/docs/API.md">API</a> · <a href="mailto:' + ABUSE_EMAIL + '?subject=Report%20' + BASE_HOST + '">举报滥用</a></div>';
 }
+
+// Promo CTA shown on note view & 404 pages. Styles are inlined so each page keeps its own CSS scope.
+function promoCardHtml() {
+  return '<a class="promo" href="https://' + BASE_HOST + '/"><span class="promo-t">做一个你自己的 →</span><span class="promo-s">把文字或链接变成 <code>yours.' + BASE_HOST + '</code></span></a>';
+}
+
+const PROMO_CSS = '.promo{display:block;margin:1.75rem 0 0;padding:.9rem 1.1rem;border:1px dashed #d4d4d4;border-radius:10px;text-decoration:none;color:inherit;transition:border-color .15s,background .15s}@media(prefers-color-scheme:dark){.promo{border-color:#333}}@media(hover:hover){.promo:hover{border-color:#999;background:rgba(128,128,128,.06)}}.promo-t{display:block;font-size:.95rem;font-weight:500}.promo-s{display:block;margin-top:.25rem;font-size:.78rem;color:#888}.promo-s code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;background:rgba(128,128,128,.1);padding:.05rem .3rem;border-radius:3px}'
 
 // ---------- pages ----------
 
@@ -302,6 +309,7 @@ function resultPage(name, content, mode, ttlKey, editToken) {
 function notePage(sub, content) {
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · ' + BASE_HOST + '</title>\n' +
+'<meta name="robots" content="noindex">\n' +
 '<style>:root{color-scheme:light dark}*{box-sizing:border-box;margin:0;padding:0}html{-webkit-text-size-adjust:100%}\n' +
 'body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:16px;padding:clamp(1rem,4vw,2rem) clamp(.85rem,4vw,2rem);padding-bottom:max(clamp(1rem,4vw,2rem),env(safe-area-inset-bottom));max-width:760px;margin:0 auto;line-height:1.6;background:#fafafa;color:#111}\n' +
 '@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#eee}pre{background:#141414;border-color:#262626}header{border-color:#262626}.foot{color:#737373}}\n' +
@@ -310,10 +318,12 @@ function notePage(sub, content) {
 'pre{white-space:pre-wrap;word-wrap:break-word;background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:clamp(1rem,3vw,1.25rem);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.95rem;line-height:1.6}\n' +
 'button{padding:.5rem .85rem;min-height:36px;border:1px solid #ddd;border-radius:6px;background:transparent;cursor:pointer;font-size:.82rem;color:inherit;font-family:inherit;flex:0 0 auto;-webkit-tap-highlight-color:transparent}@media(hover:hover){button:hover{background:rgba(128,128,128,.12)}}\n' +
 '.foot{margin-top:1.5rem;text-align:center;font-size:.8rem;color:#888}.foot a{color:inherit;text-decoration:none;margin:0 .5rem;padding:.2rem 0;display:inline-block}\n' +
+ PROMO_CSS + '\n' +
 '</style></head><body>\n' +
 '<header><a href="/raw">' + esc(sub) + '.' + BASE_HOST + '</a>\n' +
 '<button onclick="navigator.clipboard.writeText(document.getElementById(\'c\').innerText).then(()=>{this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1200)})">复制全文</button></header>\n' +
 '<pre id="c">' + esc(content) + '</pre>\n' +
+ promoCardHtml() + '\n' +
  footerHtml() + '\n' +
 '</body></html>';
   return html(body);
@@ -391,9 +401,15 @@ function editNotePage(sub, ttlKey) {
 }
 
 function notFoundPage(sub) {
-  const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>404</title>' +
-'<style>body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:16px;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:clamp(1rem,4vw,2rem);color:#666;background:#fafafa;text-align:center;line-height:1.6}@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#a3a3a3}}a{color:inherit;padding:.25rem .1rem;display:inline-block}</style>' +
-'</head><body><div><h1 style="margin:0;font-size:3rem">404</h1><p><code>' + esc(sub) + '</code> 不存在，<a href="https://' + BASE_HOST + '/">去创建 →</a></p></div></body></html>';
+  const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · 还没人占用</title>' +
+'<meta name="robots" content="noindex">' +
+'<style>:root{color-scheme:light dark}*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:16px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:clamp(1rem,4vw,2rem);background:#fafafa;color:#111;line-height:1.6}@media(prefers-color-scheme:dark){body{background:#0a0a0a;color:#eee}.sub-name{color:#fbbf24}}.wrap{max-width:480px;width:100%;text-align:center}.tag{font-size:.8rem;color:#888;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem}.sub-name{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:clamp(1.1rem,4vw,1.4rem);font-weight:600;color:#b45309;word-break:break-all;margin-bottom:.5rem;line-height:1.3}.lead{font-size:.95rem;color:#666;margin-bottom:1.5rem}@media(prefers-color-scheme:dark){.lead{color:#a3a3a3}}' + PROMO_CSS + '.promo{margin-top:0}</style>' +
+'</head><body><div class="wrap">' +
+'<div class="tag">404 · 还没人占用</div>' +
+'<div class="sub-name">' + esc(sub) + '.' + BASE_HOST + '</div>' +
+'<div class="lead">这个子域名空着，想要么？</div>' +
+'<a class="promo" href="https://' + BASE_HOST + '/?n=' + encodeURIComponent(sub) + '"><span class="promo-t">占下 ' + esc(sub) + ' →</span><span class="promo-s">把文字或链接变成你的 <code>' + esc(sub) + '.' + BASE_HOST + '</code></span></a>' +
+'</div></body></html>';
   return html(body, 404);
 }
 

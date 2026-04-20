@@ -155,7 +155,7 @@ const COMMON_CSS = [
 ].join("\n");
 
 function footerHtml() {
-  return '<div class="foot"><a href="https://' + BASE_HOST + '/">+ 再创建</a> · <a href="mailto:' + ABUSE_EMAIL + '?subject=Report%20' + BASE_HOST + '">举报滥用</a></div>';
+  return '<div class="foot"><a href="https://' + BASE_HOST + '/">+ 再创建</a> · <a href="https://github.com/catoncat/0g-hk">GitHub</a> · <a href="https://github.com/catoncat/0g-hk/blob/main/docs/API.md">API</a> · <a href="mailto:' + ABUSE_EMAIL + '?subject=Report%20' + BASE_HOST + '">举报滥用</a></div>';
 }
 
 // ---------- pages ----------
@@ -182,6 +182,7 @@ function editorPage(opts) {
 '.brand .dot{color:#10b981}\n' +
 '.tagline{color:var(--muted);font-size:1rem;line-height:1.6;margin-bottom:1.5rem}\n' +
 '.tagline code{font-size:.9em}\n' +
+'.tagline a{color:inherit;text-decoration:underline;text-underline-offset:2px}\n' +
 '.cta{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}\n' +
 '.cta button{width:100%;min-height:50px;font-size:1.02rem}\n' +
 '.type-hint{font-size:.8rem;color:var(--faint);font-family:var(--mono);text-align:center;min-height:1.2em;letter-spacing:.02em}\n' +
@@ -211,7 +212,7 @@ function editorPage(opts) {
 '<div class="wrap">\n' +
 '<div class="card">\n' +
 '<div class="brand">0g<span class="dot">.</span>hk</div>\n' +
-'<div class="tagline">把一段文字或链接变成 <code>xxx.0g.hk</code>。<br>无账号、无表单、一次 <code>GET</code> 完成。</div>\n' +
+'<div class="tagline">把一段文字或链接变成 <code>xxx.0g.hk</code>。<br>无账号、无表单。有 <a href="https://github.com/catoncat/0g-hk/blob/main/docs/API.md">JSON API</a>。</div>\n' +
 (alertTop ? '<div class="alert-warn">' + alertTop + '</div>\n' : '') +
 '<form onsubmit="return go(event)">\n' +
 '<label for="c" class="sr">内容</label>' +
@@ -227,9 +228,9 @@ function editorPage(opts) {
 '<section class="scenarios" aria-label="典型用法">\n' +
 '<div class="scenarios-title">三种典型用法</div>\n' +
 '<div class="scn">\n' +
-'<div class="s-card"><div class="s-head"><span class="s-emoji">📋</span><span class="s-title">分享临时文本</span></div><div class="s-desc">把剪贴板扔上来，换一个可分享的 URL。</div><pre>curl 0g.hk/?c=$(pbpaste)</pre></div>\n' +
-'<div class="s-card"><div class="s-head"><span class="s-emoji">🔗</span><span class="s-title">做个好记的短链</span></div><div class="s-desc">子域即资源，比随机哈希好记 10 倍。</div><pre>talk.0g.hk → youtube/…</pre></div>\n' +
-'<div class="s-card"><div class="s-head"><span class="s-emoji">⚡</span><span class="s-title">一行接进工作流</span></div><div class="s-desc">写进 bash alias 或 iOS 快捷指令。</div><pre>alias g=\'curl 0g.hk/?c=\'</pre></div>\n' +
+'<div class="s-card"><div class="s-head"><span class="s-emoji">📋</span><span class="s-title">分享临时文本</span></div><div class="s-desc">剪贴板→一个可分享的 URL。</div><pre>pbpaste | curl -sS --data-binary @- 0g.hk/</pre></div>\n' +
+'<div class="s-card"><div class="s-head"><span class="s-emoji">🔗</span><span class="s-title">做个好记的短链</span></div><div class="s-desc">子域即资源，比随机哈希好记 10 倍。</div><pre>curl -d https://… \'0g.hk/?n=talk\'</pre></div>\n' +
+'<div class="s-card"><div class="s-head"><span class="s-emoji">⚡</span><span class="s-title">脚本友好的 JSON</span></div><div class="s-desc">Accept: application/json 拿到 token 与元数据。</div><pre>curl -sH accept:application/json \\\n -d hi 0g.hk/ | jq .editUrl</pre></div>\n' +
 '</div></section>\n' +
  footerHtml() + '\n' +
 '</div>\n' +

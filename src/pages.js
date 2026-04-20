@@ -2,7 +2,7 @@
 // Extracted verbatim from src/index.js.
 import { BASE_HOST, TTL_OPTIONS, DEFAULT_TTL, ABUSE_EMAIL } from "./constants.js";
 import { esc, shortUrlFor, isUrl, parseUrlSafe } from "./util.js";
-import { COMMON_CSS, THEME_CSS, PROMO_CSS, html, footerHtml, promoCardHtml } from "./responses.js";
+import { COMMON_CSS, THEME_CSS, PROMO_CSS, NOTE_PROMO_CSS, html, footerHtml, promoCardHtml } from "./responses.js";
 
 export function editorPage(opts) {
   opts = opts || {};
@@ -209,20 +209,28 @@ export function resultPage(name, content, mode, ttlKey, editToken) {
 }
 
 export function notePage(sub, content) {
+  const isShort = content.length <= 40 && !/\n/.test(content);
+  const preOpen = isShort ? '<pre id="c" class="big">' : '<pre id="c">';
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · ' + BASE_HOST + '</title>\n' +
 '<meta name="robots" content="noindex">\n' +
 '<style>' + THEME_CSS + '*{box-sizing:border-box;margin:0;padding:0}html{-webkit-text-size-adjust:100%}\n' +
 'body{font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:16px;padding:clamp(1rem,4vw,2rem) clamp(.85rem,4vw,2rem);padding-bottom:max(clamp(1rem,4vw,2rem),env(safe-area-inset-bottom));max-width:760px;margin:0 auto;line-height:1.6;background:var(--bg);color:var(--text)}\n' +
-'header{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding-bottom:.75rem;margin-bottom:1.25rem;border-bottom:1px solid var(--border);font-size:.85rem;color:var(--faint)}\n' +
-'header a{color:inherit;text-decoration:none;font-family:var(--mono);word-break:break-all;flex:1;min-width:0}\n' +
+'header{display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding-bottom:.85rem;margin-bottom:1.25rem;border-bottom:1px solid var(--border)}\n' +
+'.logo{font-family:var(--mono);font-size:1.1rem;font-weight:700;letter-spacing:-.02em;color:var(--text);text-decoration:none;line-height:1;flex:0 0 auto}\n' +
+'.logo .dot{color:#10b981}\n' +
+'.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:6px;overflow:hidden;flex:0 0 auto}\n' +
+'.seg>*{padding:.5rem .85rem;min-height:36px;background:transparent;cursor:pointer;font-size:.82rem;color:inherit;font-family:inherit;border:0;text-decoration:none;display:inline-flex;align-items:center;-webkit-tap-highlight-color:transparent}\n' +
+'.seg>*+*{border-left:1px solid var(--border-strong)}\n' +
+'@media(hover:hover){.seg>*:hover{background:rgba(128,128,128,.12)}}\n' +
 'pre{white-space:pre-wrap;word-wrap:break-word;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:clamp(1rem,3vw,1.25rem);font-family:var(--mono);font-size:.95rem;line-height:1.6;color:var(--text)}\n' +
-'button{padding:.5rem .85rem;min-height:36px;border:1px solid var(--border-strong);border-radius:6px;background:transparent;cursor:pointer;font-size:.82rem;color:inherit;font-family:inherit;flex:0 0 auto;-webkit-tap-highlight-color:transparent}@media(hover:hover){button:hover{background:rgba(128,128,128,.12)}}\n' +
-'.foot{margin-top:1.5rem;text-align:center;font-size:.8rem;color:var(--faint)}.foot a{color:inherit;text-decoration:none;margin:0 .5rem;padding:.2rem 0;display:inline-block}\n' +
+'pre.big{font-size:clamp(1.3rem,4vw,1.8rem);line-height:1.45;text-align:center;padding:clamp(1.5rem,5vw,2.25rem) clamp(1rem,3vw,1.25rem);font-weight:500}\n' +
+NOTE_PROMO_CSS + '\n' +
 '</style></head><body>\n' +
-'<header><a href="/raw">' + esc(sub) + '.' + BASE_HOST + '</a>\n' +
-'<button onclick="navigator.clipboard.writeText(document.getElementById(\'c\').innerText).then(()=>{this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1200)})">复制全文</button></header>\n' +
-'<pre id="c">' + esc(content) + '</pre>\n' +
+'<header><a class="logo" href="https://' + BASE_HOST + '/">0g<span class="dot">.</span>hk</a>\n' +
+'<div class="seg"><button type="button" onclick="navigator.clipboard.writeText(document.getElementById(\'c\').innerText).then(()=>{this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1200)})">复制</button><a href="/raw">原文</a></div></header>\n' +
+preOpen + esc(content) + '</pre>\n' +
+promoCardHtml() + '\n' +
  footerHtml() + '\n' +
 '</body></html>';
   return html(body);

@@ -67,11 +67,14 @@ export function footerHtml() {
 }
 
 export function promoCardHtml() {
-  return '<div class="wrap"><div class="card" style="border-style:dashed"><p class="muted" style="margin:0">' +
-    '<strong>开发者？</strong> 本站是一个极简短链 / 笔记服务，支持 REST、curl 一行创建，见 ' +
-    '<a href="https://' + BASE_HOST + '/llms.txt" style="color:inherit">llms.txt</a>。' +
-    '</p></div></div>';
+  return '<a class="promo" href="https://' + BASE_HOST + '/">' +
+    '<span class="promo-t">你也能用 0g<span class="promo-dot">.</span>hk 创建一个</span>' +
+    '<span class="promo-s">复制一段文字 / 粘贴一条链接 → 生成 <code>xxx.' + BASE_HOST + '</code>，7 天后自毁</span>' +
+    '<span class="promo-cta">试试 →</span>' +
+    '</a>';
 }
+
+export const NOTE_PROMO_CSS = '.promo{display:block;margin:1.75rem 0 0;padding:1.1rem 1.25rem;border:1px solid var(--border);border-radius:12px;background:var(--surface);text-decoration:none;color:inherit;transition:border-color .15s,background .15s,transform .15s}@media(hover:hover){.promo:hover{border-color:var(--border-strong);background:var(--surface-2)}.promo:hover .promo-cta{transform:translateX(2px)}}.promo-t{display:block;font-size:1rem;font-weight:600;letter-spacing:-.01em;margin-bottom:.3rem}.promo-t .promo-dot{color:#10b981}.promo-s{display:block;font-size:.82rem;color:var(--muted);line-height:1.5}.promo-s code{font-family:var(--mono);font-size:.88em;background:rgba(128,128,128,.1);padding:.05rem .3rem;border-radius:3px}.promo-cta{display:inline-block;margin-top:.7rem;font-size:.85rem;font-weight:500;color:var(--text);transition:transform .15s}';
 
 // API + JSON helpers
 export function wantsJson(req, url) {

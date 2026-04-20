@@ -219,12 +219,10 @@ export function notePage(sub, content) {
 'pre{white-space:pre-wrap;word-wrap:break-word;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:clamp(1rem,3vw,1.25rem);font-family:var(--mono);font-size:.95rem;line-height:1.6;color:var(--text)}\n' +
 'button{padding:.5rem .85rem;min-height:36px;border:1px solid var(--border-strong);border-radius:6px;background:transparent;cursor:pointer;font-size:.82rem;color:inherit;font-family:inherit;flex:0 0 auto;-webkit-tap-highlight-color:transparent}@media(hover:hover){button:hover{background:rgba(128,128,128,.12)}}\n' +
 '.foot{margin-top:1.5rem;text-align:center;font-size:.8rem;color:var(--faint)}.foot a{color:inherit;text-decoration:none;margin:0 .5rem;padding:.2rem 0;display:inline-block}\n' +
- PROMO_CSS + '\n' +
 '</style></head><body>\n' +
 '<header><a href="/raw">' + esc(sub) + '.' + BASE_HOST + '</a>\n' +
 '<button onclick="navigator.clipboard.writeText(document.getElementById(\'c\').innerText).then(()=>{this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1200)})">复制全文</button></header>\n' +
 '<pre id="c">' + esc(content) + '</pre>\n' +
- promoCardHtml() + '\n' +
  footerHtml() + '\n' +
 '</body></html>';
   return html(body);

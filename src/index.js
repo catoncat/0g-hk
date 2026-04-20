@@ -23,7 +23,200 @@
 //   OPTIONS * -> CORS preflight
 
 const BASE_HOST = "0g.hk";
-const RESERVED = new Set(["www", "api", "new", "admin", "edit", "raw", "n", "app", "abuse", "report", "exists"]);
+const RESERVED = new Set([
+  // system paths
+  "www", "api", "new", "admin", "edit", "raw", "n", "app", "abuse", "report", "exists",
+  "mail", "email", "dns", "mx", "ns", "cdn", "static", "assets", "help", "docs", "status",
+]);
+
+// Substrings (case-insensitive) that indicate brand squatting / phishing intent.
+// Matched by String.includes() against the requested name, so compound tokens
+// like "apple-id-reset" or "metamask-login" are blocked too.
+// Random names won't hit these because they're generated from a restricted alphabet.
+const BRAND_BLOCK = [
+  // global brands
+  "apple", "icloud", "itunes", "appstore",
+  "google", "gmail", "youtube",
+  "microsoft", "office365", "outlook", "hotmail", "onedrive", "xbox",
+  "facebook", "instagram", "whatsapp",
+  "amazon", "netflix", "spotify", "disney", "linkedin",
+  // finance / banking
+  "paypal", "stripe", "venmo", "cashapp", "zelle",
+  "visa", "mastercard", "amex",
+  "chase", "wellsfargo", "hsbc", "barclays", "citibank", "santander",
+  // crypto
+  "binance", "coinbase", "kraken", "kucoin", "huobi", "bybit", "okex",
+  "metamask", "trustwallet", "phantom", "ledger", "trezor", "uniswap",
+  "usdt", "usdc",
+  // CN brands
+  "alipay", "zhifubao", "taobao", "tmall", "jingdong", "pinduoduo",
+  "wechat", "weixin", "tencent", "douyin", "tiktok", "alibaba",
+  // AI
+  "openai", "chatgpt", "anthropic", "midjourney",
+  // phishing verbs
+  "login", "signin", "signup", "verify", "verification", "confirm",
+  "secure", "support", "billing", "account", "unlock", "suspended",
+  "password", "recovery", "wallet",
+  // shipping scams
+  "usps", "fedex", "dhl",
+  // other platforms
+  "dropbox", "discord", "telegram",
+];
+
+function isBrandSquatting(name) {
+  const n = (name || "").toLowerCase();
+  for (let i = 0; i < BRAND_BLOCK.length; i++) {
+    if (n.indexOf(BRAND_BLOCK[i]) !== -1) return BRAND_BLOCK[i];
+  }
+  return null;
+}
+
+// Known URL shorteners / redirect services — block as redirect targets to prevent
+// chaining around Safe Browsing scans.
+const SHORTENER_HOSTS = new Set([
+  "bit.ly", "t.co", "tinyurl.com", "goo.gl", "is.gd", "ow.ly", "buff.ly",
+  "cutt.ly", "rebrand.ly", "short.io", "rb.gy", "shorturl.at", "lnkd.in",
+  "tiny.cc", "t.ly", "x.gd", "v.gd", "s.id", "t2m.io", "bl.ink",
+  "0g.hk",
+]);
+
+function isBlockedTargetHost(host) {
+  const h = (host || "").toLowerCase();
+  for (const d of SHORTENER_HOSTS) {
+    if (h === d || h.endsWith("." + d)) return d;
+  }
+  return null;
+}
+
+// Reject URLs with dangerous/exotic schemes outright.
+function hasDangerousScheme(u) {
+  return /^(javascript|data|vbscript|file|blob|ftp):/i.test((u || "").trim());
+}
+
+// ---------- moderation ----------
+
+// Auto-disable threshold: N community reports (deduped by IP/day) → soft-ban the name.
+const ABUSE_AUTO_DISABLE = 3;
+
+// Workers AI classifier. Free-tier; gated on env.AI binding.
+// Returns { ok: boolean, label?: string, reason?: string, skipped?: boolean }.
+// ok=false means content was classified as abusive and must be rejected.
+async function aiModerate(env, kind, content, name) {
+  if (!env || !env.AI) return { ok: true, skipped: true };
+  // Short-circuit for trivially safe tiny text.
+  if (kind === "text" && content.length < 4) return { ok: true, skipped: true };
+
+  const cacheKey = "aimod:" + kind + ":" + (await sha256Base64Url(kind + "\n" + (name || "") + "\n" + content)).slice(0, 32);
+  try {
+    const cached = await env.NOTES.get(cacheKey);
+    if (cached) {
+      const c = JSON.parse(cached);
+      return c;
+    }
+  } catch {}
+
+  const system = [
+    "You are a strict content-moderation classifier for a public URL shortener + paste service.",
+    "Given a sub-domain NAME and CONTENT (a URL or short text), decide if it is abusive.",
+    "Abusive categories: phishing, brand impersonation, malware/credential theft, illegal content,",
+    "CSAM, sexual exploitation, doxxing, targeted harassment, spam payload, scam, piracy, drugs sales.",
+    "Benign examples: personal notes, technical snippets, public articles, code, quotes, jokes, links to known neutral sites.",
+    "Respond with ONLY a compact JSON object and nothing else:",
+    '{"abuse":true|false,"label":"phishing|malware|scam|csam|illegal|spam|other|none","confidence":0.0-1.0,"reason":"<=15 words"}',
+  ].join(" ");
+  const user = "NAME: " + (name || "(random)") + "\nKIND: " + kind + "\nCONTENT:\n" + (content || "").slice(0, 1500);
+
+  let result = { ok: true, skipped: false };
+  try {
+    const r = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      max_tokens: 120,
+      temperature: 0,
+    });
+    const raw = (r && (r.response || r.result || "")) + "";
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) {
+      result = { ok: true, skipped: true, reason: "no_json" };
+    } else {
+      let j;
+      try { j = JSON.parse(m[0]); } catch { j = null; }
+      if (!j) {
+        result = { ok: true, skipped: true, reason: "bad_json" };
+      } else {
+        const abuse = j.abuse === true && (typeof j.confidence !== "number" || j.confidence >= 0.55);
+        result = abuse
+          ? { ok: false, label: String(j.label || "other"), reason: String(j.reason || "classifier flagged").slice(0, 80), confidence: j.confidence }
+          : { ok: true, label: String(j.label || "none"), confidence: j.confidence };
+      }
+    }
+  } catch (e) {
+    // Fail open: don't block legit users on AI outage.
+    result = { ok: true, skipped: true, reason: "ai_error:" + String(e && e.message || e).slice(0, 40) };
+  }
+
+  try {
+    await env.NOTES.put(cacheKey, JSON.stringify(result), { expirationTtl: 86400 });
+  } catch {}
+  return result;
+}
+
+// Google Safe Browsing Lookup API v4. Gated on env.SAFE_BROWSING_KEY.
+// Returns { ok: boolean, skipped?: boolean, threats?: string[] }.
+async function checkSafeBrowsing(env, targetUrl) {
+  const key = env && env.SAFE_BROWSING_KEY;
+  if (!key) return { ok: true, skipped: true };
+  try {
+    const r = await fetch(
+      "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=" + encodeURIComponent(key),
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          client: { clientId: "0g.hk", clientVersion: "1.0" },
+          threatInfo: {
+            threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
+            platformTypes: ["ANY_PLATFORM"],
+            threatEntryTypes: ["URL"],
+            threatEntries: [{ url: targetUrl }],
+          },
+        }),
+      },
+    );
+    if (!r.ok) return { ok: true, skipped: true, error: "http_" + r.status };
+    const j = await r.json();
+    const matches = (j && j.matches) || [];
+    if (matches.length > 0) {
+      return { ok: false, threats: matches.map((m) => String(m.threatType)) };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: true, skipped: true, error: String(e && e.message || e).slice(0, 80) };
+  }
+}
+
+// Cloudflare Turnstile verification. Gated on env.TURNSTILE_SECRET.
+// Returns { ok: boolean, skipped?: boolean }.
+async function verifyTurnstile(env, req, bodyToken) {
+  const secret = env && env.TURNSTILE_SECRET;
+  if (!secret) return { ok: true, skipped: true };
+  const token = bodyToken || "";
+  if (!token) return { ok: false, skipped: false };
+  try {
+    const form = new FormData();
+    form.set("secret", secret);
+    form.set("response", token);
+    const ip = req.headers.get("cf-connecting-ip");
+    if (ip) form.set("remoteip", ip);
+    const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form });
+    const j = await r.json();
+    return { ok: j && j.success === true };
+  } catch (e) {
+    return { ok: false, error: String(e && e.message || e).slice(0, 80) };
+  }
+}
 const NAME_RE = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 const TEXT_MAX = 8 * 1024;
 const URL_MAX = 2 * 1024;
@@ -119,19 +312,73 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
+// Adaptive rate limiter. Each IP has its own per-minute bucket. If that IP has
+// triggered >= ADAPTIVE_REJECT_THRESHOLD safety rejects in the last ~15m, its
+// effective limit is tightened to ADAPTIVE_RATE_LIMIT for this minute window.
+const ADAPTIVE_REJECT_THRESHOLD = 5;
+const ADAPTIVE_RATE_LIMIT = 2;
+
 async function rateLimit(env, ip) {
-  const key = "rl:" + ip + ":" + Math.floor(Date.now() / 60000);
-  const v = await env.NOTES.get(key);
+  const minute = Math.floor(Date.now() / 60000);
+  const key = "rl:" + ip + ":" + minute;
+  const [v, recentRej] = await Promise.all([
+    env.NOTES.get(key),
+    env.NOTES.get("rej-ip:" + ip),
+  ]);
   const n = v ? parseInt(v, 10) + 1 : 1;
-  if (n > RATE_LIMIT) return false;
+  const limit = recentRej && parseInt(recentRej, 10) >= ADAPTIVE_REJECT_THRESHOLD ? ADAPTIVE_RATE_LIMIT : RATE_LIMIT;
+  if (n > limit) return false;
   await env.NOTES.put(key, String(n), { expirationTtl: 70 });
   return true;
 }
 
+// Increment per-code rejection counter (30d bucket by UTC day) and per-IP
+// recent-reject counter (15m TTL) used by adaptive rate limit.
+// Fire-and-forget; failures do not block the response.
+function recordReject(env, code, ip) {
+  try {
+    const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const k1 = "rej:" + day + ":" + code;
+    env.NOTES.get(k1).then((v) => {
+      const n = v ? parseInt(v, 10) + 1 : 1;
+      return env.NOTES.put(k1, String(n), { expirationTtl: 60 * 60 * 24 * 30 });
+    }).catch(() => {});
+    if (ip) {
+      const k2 = "rej-ip:" + ip;
+      env.NOTES.get(k2).then((v) => {
+        const n = v ? parseInt(v, 10) + 1 : 1;
+        return env.NOTES.put(k2, String(n), { expirationTtl: 60 * 15 });
+      }).catch(() => {});
+    }
+  } catch {}
+}
+
+// Security headers applied to every HTML response.
+// CSP allows inline styles + inline scripts (legacy inline handlers in pages)
+// plus the Turnstile CDN; upgrade to nonce-CSP is a future hardening step.
+const SECURITY_HEADERS = {
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "permissions-policy": "geolocation=(), microphone=(), camera=(), payment=()",
+  "content-security-policy": [
+    "default-src 'self'",
+    "img-src 'self' data:",
+    "style-src 'self' 'unsafe-inline'",
+    "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+    "frame-src https://challenges.cloudflare.com",
+    "connect-src 'self' https://challenges.cloudflare.com",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; "),
+  "x-robots-tag": "noindex, nofollow",
+};
+
 function html(body, status = 200, extra = {}) {
   return new Response(body, {
     status,
-    headers: Object.assign({ "content-type": "text/html;charset=utf-8" }, extra),
+    headers: Object.assign({ "content-type": "text/html;charset=utf-8" }, SECURITY_HEADERS, extra),
   });
 }
 
@@ -435,8 +682,10 @@ function interstitialPage(sub, target) {
 '<div class="host">' + esc(host) + '</div>\n' +
 '<div class="target">' + esc(target) + '</div>\n' +
 '<a class="btn" rel="noopener noreferrer nofollow" href="' + esc(target) + '">确认继续 →</a>\n' +
-'<div class="foot"><a href="https://' + BASE_HOST + '/">返回首页</a> · <a href="mailto:' + ABUSE_EMAIL + '?subject=Report%20' + esc(sub) + '.' + BASE_HOST + '">举报此链接</a></div>\n' +
-'</div></body></html>';
+'<div class="foot"><a href="https://' + BASE_HOST + '/">返回首页</a> · <a href="#" onclick="return rep()">举报此链接</a></div>\n' +
+'</div>\n' +
+'<script>function rep(){if(!confirm("确认举报此链接为钓鱼/恶意/欺诈？"))return false;fetch("/abuse/report",{method:"POST",headers:{accept:"application/json"}}).then(function(r){return r.json()}).then(function(j){alert(j && j.disabled?"举报已提交，链接已被自动禁用。":"举报已提交，感谢协助。")}).catch(function(){alert("网络错误，稍后重试。")});return false}</script>\n' +
+'</body></html>';
   return html(body);
 }
 
@@ -752,6 +1001,41 @@ async function handleCreate(req, env, url) {
     return replyError(req, url, "rate_limited", "Rate limit exceeded (" + RATE_LIMIT + "/min)", 429, { limit: RATE_LIMIT, windowSeconds: 60 });
   }
 
+  // --- abuse gates (apply only to custom names; random names are unguessable) ---
+  if (name) {
+    const brand = isBrandSquatting(name);
+    if (brand) { recordReject(env, "brand_blocked", ip); return replyError(req, url, "brand_blocked", "Name contains a restricted brand/phishing term (" + brand + ")", 400, { term: brand }); }
+  }
+
+  if (urlMode) {
+    if (hasDangerousScheme(content)) {
+      recordReject(env, "bad_scheme", ip);
+      return replyError(req, url, "bad_scheme", "Dangerous URL scheme", 400);
+    }
+    const parsed = parseUrlSafe(content);
+    if (parsed) {
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        recordReject(env, "bad_scheme", ip);
+        return replyError(req, url, "bad_scheme", "Only http/https URLs are allowed", 400, { scheme: parsed.protocol });
+      }
+      const blockedHost = isBlockedTargetHost(parsed.hostname);
+      if (blockedHost) { recordReject(env, "shortener_blocked", ip); return replyError(req, url, "shortener_blocked", "Chaining URL shorteners is not allowed (" + blockedHost + ")", 400, { host: blockedHost }); }
+    }
+    const sb = await checkSafeBrowsing(env, content);
+    if (!sb.ok && sb.threats) {
+      recordReject(env, "unsafe_target", ip);
+      return replyError(req, url, "unsafe_target", "Target URL flagged unsafe", 400, { threats: sb.threats });
+    }
+  }
+
+  // AI moderation (Workers AI free tier). Fails open on outage.
+  const aiKind = urlMode ? "url" : "text";
+  const mod = await aiModerate(env, aiKind, content, name);
+  if (!mod.ok) {
+    recordReject(env, "content_blocked", ip);
+    return replyError(req, url, "content_blocked", "Content classified as abusive by moderation", 400, { label: mod.label || "other", reason: mod.reason });
+  }
+
   if (!name) {
     for (let i = 0; i < 6; i++) {
       const cand = randomName(6);
@@ -850,6 +1134,35 @@ async function handleEdit(req, env, sub, url) {
     urlMode = isUrl(content);
   }
 
+  // Re-run abuse gates on edited content (content may have changed from original).
+  if (contentIn) {
+    if (urlMode) {
+      if (hasDangerousScheme(content)) {
+        recordReject(env, "bad_scheme", ip);
+        return replyError(req, url, "bad_scheme", "Dangerous URL scheme", 400);
+      }
+      const parsed = parseUrlSafe(content);
+      if (parsed) {
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          recordReject(env, "bad_scheme", ip);
+          return replyError(req, url, "bad_scheme", "Only http/https URLs are allowed", 400, { scheme: parsed.protocol });
+        }
+        const blockedHost = isBlockedTargetHost(parsed.hostname);
+        if (blockedHost) { recordReject(env, "shortener_blocked", ip); return replyError(req, url, "shortener_blocked", "Chaining URL shorteners is not allowed", 400, { host: blockedHost }); }
+      }
+      const sb = await checkSafeBrowsing(env, content);
+      if (!sb.ok && sb.threats) {
+        recordReject(env, "unsafe_target", ip);
+        return replyError(req, url, "unsafe_target", "Target URL flagged unsafe", 400, { threats: sb.threats });
+      }
+    }
+    const mod = await aiModerate(env, urlMode ? "url" : "text", content, sub);
+    if (!mod.ok) {
+      recordReject(env, "content_blocked", ip);
+      return replyError(req, url, "content_blocked", "Content classified as abusive by moderation", 400, { label: mod.label || "other", reason: mod.reason });
+    }
+  }
+
   // Optional TTL update on edit (legacy values like "forever"/"30d"/"90d"/"1y" fall back to DEFAULT_TTL)
   const newTtlRaw = (bp.ttl || url.searchParams.get("ttl") || "").toLowerCase();
   if (newTtlRaw && !(newTtlRaw in TTL_OPTIONS)) {
@@ -894,12 +1207,62 @@ async function handleEdit(req, env, sub, url) {
   return r;
 }
 
+async function handleAbuseReport(req, env, sub, url) {
+  // dedupe key: (name, ip-truncated, day)
+  const ip = req.headers.get("cf-connecting-ip") || "0";
+  const ipTrunc = ip.split(":").slice(0, 4).join(":").split(".").slice(0, 3).join(".");
+  const day = new Date().toISOString().slice(0, 10);
+  const dedupeKey = "abuse-dedupe:" + sub + ":" + day + ":" + (await sha256Base64Url(ipTrunc)).slice(0, 12);
+  const already = await env.NOTES.get(dedupeKey);
+  const counterKey = "abuse:" + sub;
+  let count = parseInt((await env.NOTES.get(counterKey)) || "0", 10) || 0;
+  let disabled = false;
+  if (!already) {
+    count += 1;
+    // Keep counter for 30 days; dedupe 1 day.
+    await env.NOTES.put(counterKey, String(count), { expirationTtl: 30 * 86400 });
+    await env.NOTES.put(dedupeKey, "1", { expirationTtl: 86400 });
+    if (count >= ABUSE_AUTO_DISABLE) {
+      // Disable marker persists longer than the note's own TTL to prevent re-use
+      // of the same abusive name after expiry.
+      await env.NOTES.put("d:" + sub, JSON.stringify({ reason: "community_reports", count, at: Date.now() }), { expirationTtl: 365 * 86400 });
+      disabled = true;
+    }
+  }
+  if (wantsJson(req, url)) {
+    return jsonResponse({ ok: true, name: sub, reports: count, disabled, deduped: !!already });
+  }
+  const body = '<div class="wrap"><div class="card">' +
+    '<h2 style="margin:0 0 8px">举报已提交</h2>' +
+    '<p class="muted">感谢协助维护社区安全。' + (disabled ? '该链接已被自动禁用。' : ('累计举报：' + count + ' 次。')) + '</p>' +
+    '<p><a class="btn ghost" href="https://' + BASE_HOST + '/">返回首页</a></p>' +
+    '</div>' + footerHtml() + '</div>';
+  return html(body, 200);
+}
+
 async function handleSubdomain(req, env, host, url) {
   const pathname = url.pathname;
   const sub = host.slice(0, -(BASE_HOST.length + 1));
   if (!NAME_RE.test(sub) || RESERVED.has(sub)) {
     if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404, { name: sub });
     return notFoundPage(sub);
+  }
+
+  // Abuse report endpoint: works even for disabled content.
+  if (pathname === "/abuse/report") {
+    return handleAbuseReport(req, env, sub, url);
+  }
+
+  // Disabled (auto-banned by reports or manual takedown): block all reads/edits.
+  const disabledRaw = await env.NOTES.get("d:" + sub);
+  if (disabledRaw) {
+    if (wantsJson(req, url)) return jsonError("disabled", "Content disabled due to abuse reports", 410, { name: sub });
+    const body = '<div class="wrap"><div class="card">' +
+      '<h2 style="margin:0 0 8px">内容已禁用</h2>' +
+      '<p class="muted">该短链/笔记因举报被系统自动禁用，若系误判请通过 <a href="mailto:abuse@0g.hk">abuse@0g.hk</a> 申诉。</p>' +
+      '<p><a class="btn ghost" href="https://' + BASE_HOST + '/">返回首页</a></p>' +
+      '</div>' + footerHtml() + '</div>';
+    return html(body, 410);
   }
 
   // Edit via query param OR POST/PUT body
@@ -977,6 +1340,81 @@ async function handleSubdomain(req, env, host, url) {
   return notePage(sub, content);
 }
 
+// Admin panel. Gated by env.ADMIN_KEY (set via `wrangler secret put ADMIN_KEY`).
+// Auth: "Authorization: Bearer <ADMIN_KEY>" header OR ?key=<ADMIN_KEY> query.
+// Endpoints:
+//   GET  /admin/stats                    -> 30d rejection counters
+//   GET  /admin/note?name=<sub>          -> inspect a note's meta
+//   POST /admin/disable?name=<sub>       -> disable (410) for 365d
+//   POST /admin/enable?name=<sub>        -> re-enable
+async function handleAdmin(req, env, url) {
+  const expected = env && env.ADMIN_KEY;
+  if (!expected) return jsonError("admin_disabled", "Admin API not configured", 503);
+  const auth = req.headers.get("authorization") || "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const provided = bearer || url.searchParams.get("key") || "";
+  if (!provided || !ctEq(provided, expected)) return jsonError("unauthorized", "Invalid admin key", 401);
+
+  const path = url.pathname;
+  if (path === "/admin/stats") {
+    const codes = ["brand_blocked", "bad_scheme", "shortener_blocked", "unsafe_target", "content_blocked"];
+    const days = [];
+    const now = Date.now();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now - i * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
+      days.push(d);
+    }
+    const byDay = {};
+    await Promise.all(days.map(async (d) => {
+      const row = {};
+      await Promise.all(codes.map(async (c) => {
+        const v = await env.NOTES.get("rej:" + d + ":" + c);
+        row[c] = v ? parseInt(v, 10) : 0;
+      }));
+      byDay[d] = row;
+    }));
+    return jsonResponse({ ok: true, days: byDay });
+  }
+
+  const name = (url.searchParams.get("name") || "").toLowerCase();
+  if (!name || !NAME_RE.test(name)) return jsonError("bad_name", "Missing/invalid name", 400);
+
+  if (path === "/admin/note" && req.method === "GET") {
+    const [content, metaRaw, disabled, abuseCount] = await Promise.all([
+      env.NOTES.get("n:" + name),
+      env.NOTES.get("m:" + name),
+      env.NOTES.get("d:" + name),
+      env.NOTES.get("abuse:" + name),
+    ]);
+    let meta = null;
+    try { meta = metaRaw ? JSON.parse(metaRaw) : null; } catch {}
+    return jsonResponse({
+      ok: true,
+      name,
+      exists: content != null,
+      disabled: !!disabled,
+      abuseCount: abuseCount ? parseInt(abuseCount, 10) : 0,
+      kind: meta && meta.k,
+      ttl: meta && meta.t,
+      createdAt: meta && meta.c ? new Date(meta.c).toISOString() : null,
+      content,
+    });
+  }
+
+  if (path === "/admin/disable" && req.method === "POST") {
+    await env.NOTES.put("d:" + name, "admin", { expirationTtl: 60 * 60 * 24 * 365 });
+    return jsonResponse({ ok: true, name, disabled: true });
+  }
+
+  if (path === "/admin/enable" && req.method === "POST") {
+    await env.NOTES.delete("d:" + name);
+    await env.NOTES.delete("abuse:" + name);
+    return jsonResponse({ ok: true, name, disabled: false });
+  }
+
+  return jsonError("not_found", "Unknown admin endpoint", 404);
+}
+
 function corsPreflight() {
   return new Response(null, {
     status: 204,
@@ -998,6 +1436,7 @@ export default {
 
     if (host === BASE_HOST) {
       if (url.pathname === "/exists") return handleExists(env, url);
+      if (url.pathname.startsWith("/admin/")) return handleAdmin(req, env, url);
       if (url.pathname === "/llms.txt" || url.pathname === "/robots.txt" && url.searchParams.has("llms")) {
         return llmsTextResponse();
       }

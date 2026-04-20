@@ -8,6 +8,11 @@ workers_dev = false
 binding = "NOTES"
 id = "5abeab410f7841eeb5b06942a3cfa42b"
 
+# Workers AI binding for content moderation (phishing / malware / spam classification).
+# Uses the free tier's Llama 3.1 8B instruct model for zero-cost classification.
+[ai]
+binding = "AI"
+
 [[routes]]
 pattern = "0g.hk"
 zone_name = "0g.hk"

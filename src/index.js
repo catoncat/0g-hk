@@ -426,7 +426,10 @@ function editNotePage(sub, ttlKey) {
 'document.addEventListener("keydown",function(e){if((e.metaKey||e.ctrlKey)&&e.key==="s"){e.preventDefault();save()}});\n' +
 '</script>\n' +
 '</body></html>';
-  return html(body, 200, { "cache-control": "no-store" });
+  // Bare homepage (no prefill / no error) is cacheable; prefilled/error variants must stay fresh.
+  const isBareHome = !opts || (!opts.prefillContent && !opts.prefillName && !opts.prefillTtl && !opts.errorName && !opts.alertTop);
+  const cc = isBareHome ? "public, max-age=300, stale-while-revalidate=86400" : "no-store";
+  return html(body, 200, { "cache-control": cc });
 }
 
 function notFoundPage(sub) {

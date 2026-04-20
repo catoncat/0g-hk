@@ -619,14 +619,22 @@ async function handleEdit(req, env, sub, url) {
     return replyError(req, url, "rate_limited", "Rate limit exceeded (" + RATE_LIMIT + "/min)", 429, { limit: RATE_LIMIT, windowSeconds: 60 });
   }
 
-  const metaRaw = await env.NOTES.get("m:" + sub);
-  if (!metaRaw) return replyError(req, url, "not_editable", "Not editable", 403);
+  const metaRawOrig = await env.NOTES.get("m:" + sub);
+  if (!metaRawOrig) return replyError(req, url, "not_editable", "Not editable", 403);
   let meta;
-  try { meta = JSON.parse(metaRaw); } catch { return replyError(req, url, "corrupt_meta", "Corrupt meta", 500); }
+  try { meta = JSON.parse(metaRawOrig); } catch { return replyError(req, url, "corrupt_meta", "Corrupt meta", 500); }
   const tokenHash = await sha256Base64Url(token);
   if (!ctEq(tokenHash, meta.h || "")) return replyError(req, url, "invalid_token", "Invalid edit token", 403);
 
-  const ttlKey = TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL;
+  // Optional TTL update on edit
+  const newTtlRaw = (bp.ttl || url.searchParams.get("ttl") || "").toLowerCase();
+  if (newTtlRaw && !(newTtlRaw in TTL_OPTIONS)) {
+    return replyError(req, url, "invalid_ttl", "Invalid ttl (use " + Object.keys(TTL_OPTIONS).join("/") + ")", 400, { allowed: Object.keys(TTL_OPTIONS) });
+  }
+  const ttlKey = newTtlRaw || (TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL);
+  if (newTtlRaw && newTtlRaw !== meta.t) meta.t = newTtlRaw;
+  const metaRaw = (newTtlRaw && newTtlRaw !== JSON.parse(metaRawOrig).t) ? JSON.stringify(meta) : metaRawOrig;
+
   const ttlSec = TTL_OPTIONS[ttlKey];
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};
   await env.NOTES.put("n:" + sub, content, putOpts);

@@ -1,12 +1,26 @@
 // 0g.hk — 临时笔记 + 302 短链
-// GET /                                 -> 编辑器
-// GET /exists?n=<name>                   -> JSON {valid, exists}（前端异步校验）
-// GET /?c=...&n=...&ttl=...              -> 创建（同名冲突 → 编辑器+内联错误）
-// GET <name>.0g.hk                       -> 白名单 302 / 跳转中间页 / 笔记页
-// GET <name>.0g.hk/?go=1                 -> 绕过跳转中间页
-// GET <name>.0g.hk/?edit=<tk>&c=<new>    -> 以 token 覆盖同名内容
-// GET <name>.0g.hk/raw                   -> 原文
-// GET <name>.0g.hk/edit                  -> 编辑器（从 #t= fragment 读 token）
+//
+// Browser (HTML, backwards compat):
+//   GET  /                              -> 编辑器
+//   GET  /?c=...&n=...&ttl=...          -> 创建（HTML 结果页，同名 → 编辑器内联错误）
+//   GET  <name>.0g.hk                   -> 白名单 302 / 跳转中间页 / 笔记页
+//   GET  <name>.0g.hk/?go=1             -> 绕过跳转中间页
+//   GET  <name>.0g.hk/?edit=<tk>&c=...  -> 以 token 覆盖（HTML 结果页）
+//   GET  <name>.0g.hk/edit              -> 编辑器 UI（#t= fragment 读 token）
+//
+// CLI / automation (JSON + metadata headers):
+//   GET  /exists?n=<name>               -> {valid, exists, reason?}
+//   POST /                              -> 创建；body: application/json | form | text/plain
+//   POST <name>.0g.hk/?edit=<tk>        -> 覆盖；body 同上
+//   GET  <name>.0g.hk/raw               -> 原文 + 元数据 header
+//   GET  <name>.0g.hk/?format=json      -> 元数据 + 原文（不含 token）
+//
+//   Opt-in JSON: Accept: application/json 或 ?format=json
+//   Metadata headers on create/read/302:
+//     X-Name, X-Short-Url, X-Raw-Url, X-Kind (url|text),
+//     X-Ttl, X-Expires-At, X-Created-At, X-Target, X-Edit-Token, X-Edit-Url
+//   Error JSON: {ok:false, error:{code, message, ...}}
+//   OPTIONS * -> CORS preflight
 
 const BASE_HOST = "0g.hk";
 const RESERVED = new Set(["www", "api", "new", "admin", "edit", "raw", "n", "app", "abuse", "report", "exists"]);
@@ -385,42 +399,147 @@ function notFoundPage(sub) {
   return html(body, 404);
 }
 
+// ---------- api helpers ----------
+
+const API_VERSION = 1;
+
+function wantsJson(req, url) {
+  const f = (url.searchParams.get("format") || "").toLowerCase();
+  if (f === "json") return true;
+  if (f === "html") return false;
+  const accept = (req.headers.get("accept") || "").toLowerCase();
+  // Opt-in: Accept includes application/json AND not text/html.
+  // Browsers always send text/html so they stay on HTML.
+  return accept.includes("application/json") && !accept.includes("text/html");
+}
+
+function jsonResponse(obj, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: Object.assign({
+      "content-type": "application/json;charset=utf-8",
+      "cache-control": "no-store",
+      "access-control-allow-origin": "*",
+    }, extraHeaders),
+  });
+}
+
+function jsonError(code, message, status, extra = {}) {
+  return jsonResponse({ ok: false, error: Object.assign({ code, message }, extra) }, status);
+}
+
+function replyError(req, url, code, message, status, extra = {}) {
+  if (wantsJson(req, url)) return jsonError(code, message, status, extra);
+  return new Response(message, {
+    status,
+    headers: { "content-type": "text/plain;charset=utf-8" },
+  });
+}
+
+function shortUrlFor(name) { return "https://" + name + "." + BASE_HOST; }
+
+function expiresAtIso(ttlKey, createdAtMs) {
+  const ttlSec = TTL_OPTIONS[ttlKey];
+  if (!ttlSec || ttlSec <= 0 || !createdAtMs) return null;
+  return new Date(createdAtMs + ttlSec * 1000).toISOString();
+}
+
+function noteMetaHeaders(o) {
+  const short = shortUrlFor(o.name);
+  const h = {
+    "x-name": o.name,
+    "x-short-url": short,
+    "x-raw-url": short + "/raw",
+    "x-kind": o.kind,
+    "x-ttl": o.ttlKey,
+    "x-expires-at": expiresAtIso(o.ttlKey, o.createdAtMs) || "never",
+    "access-control-expose-headers":
+      "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+  };
+  if (o.createdAtMs) h["x-created-at"] = new Date(o.createdAtMs).toISOString();
+  if (o.target) h["x-target"] = o.target;
+  if (o.editToken) {
+    h["x-edit-token"] = o.editToken;
+    h["x-edit-url"] = short + "/edit#t=" + o.editToken;
+  }
+  return h;
+}
+
+async function readBody(req) {
+  if (req.method !== "POST" && req.method !== "PUT") return { ok: true, body: {} };
+  const ctype = (req.headers.get("content-type") || "").toLowerCase();
+  try {
+    if (ctype.startsWith("application/json")) {
+      const j = await req.json();
+      if (!j || typeof j !== "object") return { ok: false, err: "Invalid JSON body" };
+      return { ok: true, body: {
+        content: j.content != null ? String(j.content) : (j.c != null ? String(j.c) : ""),
+        name: j.name != null ? String(j.name) : (j.n != null ? String(j.n) : ""),
+        ttl: j.ttl != null ? String(j.ttl) : "",
+        token: j.token != null ? String(j.token) : (j.edit != null ? String(j.edit) : ""),
+      }};
+    }
+    if (ctype.startsWith("application/x-www-form-urlencoded") || ctype.startsWith("multipart/form-data")) {
+      const fd = await req.formData();
+      const g = (k) => fd.get(k) != null ? String(fd.get(k)) : "";
+      return { ok: true, body: {
+        content: g("c") || g("content"),
+        name: g("n") || g("name"),
+        ttl: g("ttl"),
+        token: g("edit") || g("token"),
+      }};
+    }
+    // text/plain or unknown: body IS the content
+    const text = await req.text();
+    return { ok: true, body: { content: text, name: "", ttl: "", token: "" } };
+  } catch (e) {
+    return { ok: false, err: "Failed to parse body: " + String(e && e.message || e) };
+  }
+}
+
 // ---------- handlers ----------
 
 async function handleExists(env, url) {
   const n = (url.searchParams.get("n") || "").toLowerCase().trim();
-  const json = (obj) => new Response(JSON.stringify(obj), {
-    headers: { "content-type": "application/json;charset=utf-8", "cache-control": "no-store" },
-  });
-  if (!n) return json({ valid: false, reason: "empty" });
-  if (!NAME_RE.test(n) || RESERVED.has(n)) return json({ valid: false, reason: "invalid" });
+  if (!n) return jsonResponse({ valid: false, reason: "empty" });
+  if (!NAME_RE.test(n) || RESERVED.has(n)) return jsonResponse({ valid: false, reason: "invalid" });
   const existing = await env.NOTES.get("n:" + n);
-  return json({ valid: true, exists: existing !== null });
+  return jsonResponse({ valid: true, exists: existing !== null });
 }
 
 async function handleCreate(req, env, url) {
-  let name = (url.searchParams.get("n") || "").toLowerCase().trim();
-  const content = url.searchParams.get("c") || "";
-  if (!content) return editorPage();
+  const bodyRes = await readBody(req);
+  if (!bodyRes.ok) return replyError(req, url, "bad_body", bodyRes.err, 400);
+  const bp = bodyRes.body || {};
 
-  const urlMode = isUrl(content);
-  if (urlMode && content.length > URL_MAX) return new Response("URL too long", { status: 413 });
-  if (!urlMode && content.length > TEXT_MAX) return new Response("Text too long", { status: 413 });
-  if (urlMode && !parseUrlSafe(content)) return new Response("Malformed URL", { status: 400 });
-
-  if (name) {
-    if (!NAME_RE.test(name)) return new Response("Invalid name (need [a-z0-9-]{2,32}, alnum ends)", { status: 400 });
-    if (RESERVED.has(name)) return new Response("Reserved name", { status: 400 });
+  // Body wins when set; query string is fallback.
+  let name = (bp.name || url.searchParams.get("n") || "").toLowerCase().trim();
+  const content = bp.content || url.searchParams.get("c") || "";
+  if (!content) {
+    if (wantsJson(req, url)) return jsonError("missing_content", "content is required (body or ?c=)", 400);
+    return editorPage();
   }
 
-  const ttlKey = (url.searchParams.get("ttl") || DEFAULT_TTL).toLowerCase();
+  const urlMode = isUrl(content);
+  if (urlMode && content.length > URL_MAX) return replyError(req, url, "url_too_long", "URL too long (max " + URL_MAX + ")", 413, { maxLength: URL_MAX });
+  if (!urlMode && content.length > TEXT_MAX) return replyError(req, url, "text_too_long", "Text too long (max " + TEXT_MAX + ")", 413, { maxLength: TEXT_MAX });
+  if (urlMode && !parseUrlSafe(content)) return replyError(req, url, "malformed_url", "Malformed URL", 400);
+
+  if (name) {
+    if (!NAME_RE.test(name)) return replyError(req, url, "invalid_name", "Invalid name (need [a-z0-9-]{2,32}, alnum ends)", 400);
+    if (RESERVED.has(name)) return replyError(req, url, "reserved_name", "Reserved name", 400, { name });
+  }
+
+  const ttlKey = (bp.ttl || url.searchParams.get("ttl") || DEFAULT_TTL).toLowerCase();
   if (!(ttlKey in TTL_OPTIONS)) {
-    return new Response("Invalid ttl (use " + Object.keys(TTL_OPTIONS).join("/") + ")", { status: 400 });
+    return replyError(req, url, "invalid_ttl", "Invalid ttl (use " + Object.keys(TTL_OPTIONS).join("/") + ")", 400, { allowed: Object.keys(TTL_OPTIONS) });
   }
   const ttlSec = TTL_OPTIONS[ttlKey];
 
   const ip = req.headers.get("cf-connecting-ip") || "0";
-  if (!(await rateLimit(env, ip))) return new Response("Rate limit exceeded (10/min)", { status: 429 });
+  if (!(await rateLimit(env, ip))) {
+    return replyError(req, url, "rate_limited", "Rate limit exceeded (" + RATE_LIMIT + "/min)", 429, { limit: RATE_LIMIT, windowSeconds: 60 });
+  }
 
   if (!name) {
     for (let i = 0; i < 6; i++) {
@@ -428,13 +547,14 @@ async function handleCreate(req, env, url) {
       if (RESERVED.has(cand)) continue;
       if (!(await env.NOTES.get("n:" + cand))) { name = cand; break; }
     }
-    if (!name) return new Response("Could not allocate name", { status: 500 });
+    if (!name) return replyError(req, url, "alloc_failed", "Could not allocate name", 500);
   }
 
   const key = "n:" + name;
   const existing = await env.NOTES.get(key);
   if (existing !== null) {
-    // 同名冲突 → 返回编辑器与内联错误，保留用户刚刚输入的内容
+    if (wantsJson(req, url)) return jsonError("name_taken", "Name already taken", 409, { name });
+    // HTML: 同名冲突 → 编辑器内联错误，保留内容
     return editorPage({
       prefillContent: content,
       prefillName: name,
@@ -445,52 +565,118 @@ async function handleCreate(req, env, url) {
 
   const token = genToken();
   const tokenHash = await sha256Base64Url(token);
+  const createdAtMs = Date.now();
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};
-  const meta = JSON.stringify({ v: 1, h: tokenHash, t: ttlKey, ct: Date.now() });
+  const meta = JSON.stringify({ v: 1, h: tokenHash, t: ttlKey, ct: createdAtMs });
   await env.NOTES.put(key, content, putOpts);
   await env.NOTES.put("m:" + name, meta, putOpts);
-  return resultPage(name, content, "created", ttlKey, token);
+
+  const kind = urlMode ? "url" : "text";
+  const target = urlMode ? content.trim() : null;
+  const mh = noteMetaHeaders({ name, ttlKey, createdAtMs, kind, target, editToken: token });
+
+  if (wantsJson(req, url)) {
+    return jsonResponse({
+      ok: true,
+      apiVersion: API_VERSION,
+      name,
+      kind,
+      shortUrl: shortUrlFor(name),
+      rawUrl: shortUrlFor(name) + "/raw",
+      editToken: token,
+      editUrl: shortUrlFor(name) + "/edit#t=" + token,
+      ttl: ttlKey,
+      createdAt: new Date(createdAtMs).toISOString(),
+      expiresAt: expiresAtIso(ttlKey, createdAtMs),
+      target,
+      contentLength: content.length,
+    }, 201, mh);
+  }
+
+  const r = resultPage(name, content, "created", ttlKey, token);
+  for (const k in mh) r.headers.set(k, mh[k]);
+  return r;
 }
 
 async function handleEdit(req, env, sub, url) {
-  const token = url.searchParams.get("edit") || "";
-  const content = url.searchParams.get("c") || "";
-  if (!token) return new Response("Missing edit token", { status: 400 });
-  if (!content) return new Response("Missing content", { status: 400 });
+  const bodyRes = await readBody(req);
+  if (!bodyRes.ok) return replyError(req, url, "bad_body", bodyRes.err, 400);
+  const bp = bodyRes.body || {};
+
+  const token = bp.token || url.searchParams.get("edit") || "";
+  const content = bp.content || url.searchParams.get("c") || "";
+  if (!token) return replyError(req, url, "missing_token", "Missing edit token", 400);
+  if (!content) return replyError(req, url, "missing_content", "Missing content", 400);
+
   const urlMode = isUrl(content);
-  if (urlMode && content.length > URL_MAX) return new Response("URL too long", { status: 413 });
-  if (!urlMode && content.length > TEXT_MAX) return new Response("Text too long", { status: 413 });
-  if (urlMode && !parseUrlSafe(content)) return new Response("Malformed URL", { status: 400 });
+  if (urlMode && content.length > URL_MAX) return replyError(req, url, "url_too_long", "URL too long", 413, { maxLength: URL_MAX });
+  if (!urlMode && content.length > TEXT_MAX) return replyError(req, url, "text_too_long", "Text too long", 413, { maxLength: TEXT_MAX });
+  if (urlMode && !parseUrlSafe(content)) return replyError(req, url, "malformed_url", "Malformed URL", 400);
 
   const ip = req.headers.get("cf-connecting-ip") || "0";
-  if (!(await rateLimit(env, ip))) return new Response("Rate limit exceeded (10/min)", { status: 429 });
+  if (!(await rateLimit(env, ip))) {
+    return replyError(req, url, "rate_limited", "Rate limit exceeded (" + RATE_LIMIT + "/min)", 429, { limit: RATE_LIMIT, windowSeconds: 60 });
+  }
 
   const metaRaw = await env.NOTES.get("m:" + sub);
-  if (!metaRaw) return new Response("Not editable", { status: 403 });
+  if (!metaRaw) return replyError(req, url, "not_editable", "Not editable", 403);
   let meta;
-  try { meta = JSON.parse(metaRaw); } catch { return new Response("Corrupt meta", { status: 500 }); }
+  try { meta = JSON.parse(metaRaw); } catch { return replyError(req, url, "corrupt_meta", "Corrupt meta", 500); }
   const tokenHash = await sha256Base64Url(token);
-  if (!ctEq(tokenHash, meta.h || "")) return new Response("Invalid edit token", { status: 403 });
+  if (!ctEq(tokenHash, meta.h || "")) return replyError(req, url, "invalid_token", "Invalid edit token", 403);
 
   const ttlKey = TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL;
   const ttlSec = TTL_OPTIONS[ttlKey];
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};
   await env.NOTES.put("n:" + sub, content, putOpts);
   await env.NOTES.put("m:" + sub, metaRaw, putOpts);
-  return resultPage(sub, content, "updated", ttlKey, null);
+
+  const kind = urlMode ? "url" : "text";
+  const target = urlMode ? content.trim() : null;
+  const createdAtMs = meta.ct || Date.now();
+  const mh = noteMetaHeaders({ name: sub, ttlKey, createdAtMs, kind, target });
+
+  if (wantsJson(req, url)) {
+    return jsonResponse({
+      ok: true,
+      apiVersion: API_VERSION,
+      name: sub,
+      kind,
+      shortUrl: shortUrlFor(sub),
+      rawUrl: shortUrlFor(sub) + "/raw",
+      ttl: ttlKey,
+      createdAt: new Date(createdAtMs).toISOString(),
+      expiresAt: expiresAtIso(ttlKey, createdAtMs),
+      target,
+      contentLength: content.length,
+    }, 200, mh);
+  }
+
+  const r = resultPage(sub, content, "updated", ttlKey, null);
+  for (const k in mh) r.headers.set(k, mh[k]);
+  return r;
 }
 
 async function handleSubdomain(req, env, host, url) {
   const pathname = url.pathname;
   const sub = host.slice(0, -(BASE_HOST.length + 1));
-  if (!NAME_RE.test(sub) || RESERVED.has(sub)) return notFoundPage(sub);
+  if (!NAME_RE.test(sub) || RESERVED.has(sub)) {
+    if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404, { name: sub });
+    return notFoundPage(sub);
+  }
 
-  if (url.searchParams.has("edit")) return handleEdit(req, env, sub, url);
+  // Edit via query param OR POST/PUT body
+  if (url.searchParams.has("edit") || req.method === "POST" || req.method === "PUT") {
+    return handleEdit(req, env, sub, url);
+  }
 
   if (pathname === "/edit") {
     const metaRaw = await env.NOTES.get("m:" + sub);
     const existing = await env.NOTES.get("n:" + sub);
-    if (existing === null) return notFoundPage(sub);
+    if (existing === null) {
+      if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404, { name: sub });
+      return notFoundPage(sub);
+    }
     let meta = {};
     try { meta = metaRaw ? JSON.parse(metaRaw) : {}; } catch {}
     const ttlKey = TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL;
@@ -498,42 +684,96 @@ async function handleSubdomain(req, env, host, url) {
   }
 
   const content = await env.NOTES.get("n:" + sub);
-  if (content === null) return notFoundPage(sub);
+  if (content === null) {
+    if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404, { name: sub });
+    return notFoundPage(sub);
+  }
+
+  const metaRaw = await env.NOTES.get("m:" + sub);
+  let meta = {};
+  try { meta = metaRaw ? JSON.parse(metaRaw) : {}; } catch {}
+  const ttlKey = TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL;
+  const createdAtMs = meta.ct || 0;
+  const urlMode = isUrl(content);
+  const kind = urlMode ? "url" : "text";
+  const target = urlMode ? content.trim() : null;
+  const mh = noteMetaHeaders({ name: sub, ttlKey, createdAtMs, kind, target });
 
   if (pathname === "/raw") {
     return new Response(content, {
-      headers: {
+      headers: Object.assign({
         "content-type": "text/plain;charset=utf-8",
-        "access-control-allow-origin": "*",
         "cache-control": "public, max-age=60",
-      },
+      }, mh),
     });
   }
 
-  if (isUrl(content)) {
+  if (wantsJson(req, url)) {
+    return jsonResponse({
+      ok: true,
+      apiVersion: API_VERSION,
+      name: sub,
+      kind,
+      shortUrl: shortUrlFor(sub),
+      rawUrl: shortUrlFor(sub) + "/raw",
+      content,
+      target,
+      ttl: ttlKey,
+      createdAt: createdAtMs ? new Date(createdAtMs).toISOString() : null,
+      expiresAt: expiresAtIso(ttlKey, createdAtMs),
+      contentLength: content.length,
+    }, 200, mh);
+  }
+
+  if (urlMode) {
     const parsed = parseUrlSafe(content);
     if (!parsed) return notePage(sub, content);
-    const target = parsed.toString();
     const bypass = url.searchParams.get("go") === "1";
-    if (bypass || isAllowedTarget(target)) return Response.redirect(target, 302);
+    if (bypass || isAllowedTarget(target)) {
+      return new Response(null, {
+        status: 302,
+        headers: Object.assign({ location: target }, mh),
+      });
+    }
     return interstitialPage(sub, target);
   }
   return notePage(sub, content);
+}
+
+function corsPreflight() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+      "access-control-allow-headers": "content-type, accept",
+      "access-control-max-age": "86400",
+    },
+  });
 }
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     const host = url.hostname.toLowerCase();
+
+    if (req.method === "OPTIONS") return corsPreflight();
+
     if (host === BASE_HOST) {
       if (url.pathname === "/exists") return handleExists(env, url);
       if (url.pathname === "/" || url.pathname === "") {
-        if (url.searchParams.has("c") || url.searchParams.has("n")) return handleCreate(req, env, url);
+        if (req.method === "POST" || req.method === "PUT" ||
+            url.searchParams.has("c") || url.searchParams.has("n")) {
+          return handleCreate(req, env, url);
+        }
         return editorPage();
       }
+      if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404);
       return new Response("Not found", { status: 404 });
     }
     if (host.endsWith("." + BASE_HOST)) return handleSubdomain(req, env, host, url);
+
+    if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404);
     return new Response("Not found", { status: 404 });
   },
 };

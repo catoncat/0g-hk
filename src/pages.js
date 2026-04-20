@@ -2,7 +2,7 @@
 // Extracted verbatim from src/index.js.
 import { BASE_HOST, TTL_OPTIONS, DEFAULT_TTL, ABUSE_EMAIL } from "./constants.js";
 import { esc, shortUrlFor, isUrl, parseUrlSafe } from "./util.js";
-import { COMMON_CSS, html, footerHtml, promoCardHtml } from "./responses.js";
+import { COMMON_CSS, THEME_CSS, PROMO_CSS, html, footerHtml, promoCardHtml } from "./responses.js";
 
 export function editorPage(opts) {
   opts = opts || {};

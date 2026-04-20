@@ -33,6 +33,8 @@ export function html(body, status = 200, extraHeaders = {}) {
 export const THEME_CSS = `:root{color-scheme:light dark;--bg:#fafaf7;--surface:#fff;--surface-2:#f4f4ef;--text:#191918;--muted:#6b6b66;--faint:#a8a8a0;--border:#e7e5df;--border-strong:#d8d5cc;--accent:#111;--accent-fg:#fff;--ok:#2f7a3a;--warn:#8a5a00;--warn-bg:#fff7e0;--warn-fg:#5a3b00;--warn-border:#f0d48a;--err:#b02a2a;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 @media (prefers-color-scheme: dark){:root{--bg:#0f0f0e;--surface:#1a1a18;--surface-2:#232320;--text:#ecece8;--muted:#9a9a93;--faint:#5b5b56;--border:#2b2b27;--border-strong:#3a3a35;--accent:#ecece8;--accent-fg:#111;--ok:#5ad06a;--warn:#e5b74a;--warn-bg:#3b2e10;--warn-fg:#f2d78a;--warn-border:#6a531a;--err:#e07070}}`;
 
+export const PROMO_CSS = '.promo{display:block;margin:1.75rem 0 0;padding:.9rem 1.1rem;border:1px dashed var(--border-strong);border-radius:10px;text-decoration:none;color:inherit;transition:border-color .15s,background .15s}@media(hover:hover){.promo:hover{border-color:var(--faint);background:rgba(128,128,128,.06)}}.promo-t{display:block;font-size:.95rem;font-weight:500}.promo-s{display:block;margin-top:.25rem;font-size:.78rem;color:var(--faint)}.promo-s code{font-family:var(--mono);font-size:.82rem;background:rgba(128,128,128,.1);padding:.05rem .3rem;border-radius:3px}';
+
 export const COMMON_CSS = THEME_CSS + `
 *{box-sizing:border-box}
 body{margin:0;padding:24px 16px;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}

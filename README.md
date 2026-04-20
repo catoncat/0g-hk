@@ -17,7 +17,7 @@ curl -sS -H 'Accept: application/json' --data-binary 'hello' 0g.hk/ | jq .
 
 # 自定名 + TTL
 curl -sS -H 'Accept: application/json' \
-  -d '{"content":"https://github.com/catoncat/0g-hk","name":"repo","ttl":"forever"}' \
+  -d '{"content":"https://github.com/catoncat/0g-hk","name":"repo","ttl":"7d"}' \
   -H 'Content-Type: application/json' \
   0g.hk/
 ```

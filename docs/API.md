@@ -40,9 +40,9 @@ curl -sS -X POST https://0g.hk/ \
   "rawUrl": "https://k3m2x9.0g.hk/raw",
   "editToken": "AbCd...",
   "editUrl": "https://k3m2x9.0g.hk/edit#t=AbCd...",
-  "ttl": "30d",
+  "ttl": "7d",
   "createdAt": "2026-04-20T00:00:00.000Z",
-  "expiresAt": "2026-05-20T00:00:00.000Z",
+  "expiresAt": "2026-04-27T00:00:00.000Z",
   "target": null,
   "contentLength": 11
 }
@@ -51,7 +51,7 @@ curl -sS -X POST https://0g.hk/ \
 ### 只要短链（一行输出）
 
 ```bash
-curl -sS -X POST 'https://0g.hk/?n=foo&ttl=forever' \
+curl -sS -X POST 'https://0g.hk/?n=foo&ttl=7d' \
   -H 'Content-Type: text/plain' \
   --data-binary 'https://github.com/catoncat/0g-hk' \
   -D - -o /dev/null | awk 'tolower($1)=="x-short-url:"{print $2}'
@@ -63,7 +63,7 @@ curl -sS -X POST 'https://0g.hk/?n=foo&ttl=forever' \
 curl -sS -X POST https://0g.hk/ \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json' \
-  -d '{"content":"https://github.com/catoncat/0g-hk","name":"repo","ttl":"forever"}'
+  -d '{"content":"https://github.com/catoncat/0g-hk","name":"repo","ttl":"7d"}'
 ```
 
 ### Form body
@@ -82,7 +82,7 @@ curl -sS -X POST https://0g.hk/ \
 | --------- | -------------- | -------------------------------------------------------------------- |
 | `content` / `c` | body 优先，query 回退 | 笔记正文（≤8KB）或以 `http(s)://` 开头的 URL（≤2KB） |
 | `name` / `n`    | 可选           | 子域名 `[a-z0-9-]{2,32}`，首尾非 `-`。不给则随机 6 字符              |
-| `ttl`           | 可选           | `1h`/`1d`/`7d`/`30d`/`90d`/`1y`/`forever`，默认 `30d`               |
+| `ttl`           | 可选           | `1h` / `1d` / `7d`（默认 `7d`，由产品策略限定最长 7 天，到期前可用 `renew` 续期）               |
 
 text/plain body 时整个 body 即 `content`，无名/TTL 参数（用 query string 补）。
 
@@ -103,23 +103,30 @@ curl -sSI https://foo.0g.hk/raw
 
 JSON 响应包含：`name, kind, shortUrl, rawUrl, content, target, ttl, createdAt, expiresAt, contentLength`（**不含 editToken**）。
 
-## 编辑（覆盖）
+## 编辑 / 续期
+
+`POST <sub>.0g.hk/?edit=<token>`，`content` / `ttl` / `renew` 三者皆可选，给什么改什么。每次编辑都会把 `expiresAt` 窗口**重置**为 `now + ttl`。
 
 ```bash
-# POST body
+# 改内容（TTL 沿用旧值，窗口重置）
 curl -sS -X POST "https://foo.0g.hk/?edit=$TOKEN" \
   -H 'Content-Type: text/plain' \
-  -H 'Accept: application/json' \
   --data-binary '新内容'
 
-# 或 JSON
+# 改 TTL（内容沿用，窗口重置）
+curl -sS -X POST "https://foo.0g.hk/?edit=$TOKEN&ttl=1d"
+
+# 纯续期（内容、TTL 都沿用，仅把窗口重置）
+curl -sS -X POST "https://foo.0g.hk/?edit=$TOKEN&renew=1"
+
+# 全 JSON
 curl -sS -X POST "https://foo.0g.hk/" \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json' \
-  -d '{"token":"'"$TOKEN"'","content":"新内容"}'
+  -d '{"token":"'"$TOKEN"'","content":"新内容","ttl":"7d"}'
 ```
 
-TTL 不变，仍以创建时为准。
+TTL 仅可在 `1h` / `1d` / `7d` 之间切换。超过 7 天到期后数据即删除，无法恢复。
 
 ## 检查名字是否可用
 

@@ -35,12 +35,9 @@ const TTL_OPTIONS = {
   "1h": 3600,
   "1d": 86400,
   "7d": 7 * 86400,
-  "30d": 30 * 86400,
-  "90d": 90 * 86400,
-  "1y": 365 * 86400,
-  "forever": 0,
 };
-const DEFAULT_TTL = "30d";
+const DEFAULT_TTL = "7d";
+// Max TTL is 7d. Use POST <sub>.0g.hk/?edit=<token>&renew=1 to reset expiration back to full TTL.
 
 const REDIRECT_ALLOWLIST = [
   "github.com", "gist.github.com",
@@ -263,7 +260,7 @@ function resultPage(name, content, mode, ttlKey, editToken) {
   const targetLine = link
     ? ('目标：<a href="' + esc(content.trim()) + '">' + esc(content.trim().slice(0, 120)) + '</a>')
     : ('内容长度：' + content.length + ' 字符');
-  const ttlLine = ttlKey ? ('<br>保留：' + (ttlKey === 'forever' ? '永久' : ttlKey)) : '';
+  const ttlLine = ttlKey ? ('<br>保留：' + ttlKey) : '';
   const qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=" + encodeURIComponent(short);
 
   const editBlock = editUrl ? (
@@ -370,7 +367,7 @@ function editNotePage(sub, ttlKey) {
 '</style></head><body>\n' +
 '<div class="card">\n' +
 '<h1>编辑笔记</h1>\n' +
-'<div class="meta"><strong>' + esc(sub) + '.' + BASE_HOST + '</strong> · 保留 ' + (ttlKey === 'forever' ? '永久' : esc(ttlKey)) + '</div>\n' +
+'<div class="meta"><strong>' + esc(sub) + '.' + BASE_HOST + '</strong> · 保留 ' + esc(ttlKey) + '</div>\n' +
 '<div id="wrap" style="display:none">\n' +
 '<textarea id="c" autofocus></textarea>\n' +
 '<div class="row"><button id="s" onclick="save()">保存</button><span id="st" class="status"></span></div>\n' +
@@ -605,14 +602,18 @@ async function handleEdit(req, env, sub, url) {
   const bp = bodyRes.body || {};
 
   const token = bp.token || url.searchParams.get("edit") || "";
-  const content = bp.content || url.searchParams.get("c") || "";
+  const contentIn = bp.content || url.searchParams.get("c") || "";
+  const renewFlag = bp.renew != null || url.searchParams.has("renew");
   if (!token) return replyError(req, url, "missing_token", "Missing edit token", 400);
-  if (!content) return replyError(req, url, "missing_content", "Missing content", 400);
+  // content is optional: if omitted, existing content is reused (pure renew or ttl-only update)
 
-  const urlMode = isUrl(content);
-  if (urlMode && content.length > URL_MAX) return replyError(req, url, "url_too_long", "URL too long", 413, { maxLength: URL_MAX });
-  if (!urlMode && content.length > TEXT_MAX) return replyError(req, url, "text_too_long", "Text too long", 413, { maxLength: TEXT_MAX });
-  if (urlMode && !parseUrlSafe(content)) return replyError(req, url, "malformed_url", "Malformed URL", 400);
+  let urlMode = false;
+  if (contentIn) {
+    urlMode = isUrl(contentIn);
+    if (urlMode && contentIn.length > URL_MAX) return replyError(req, url, "url_too_long", "URL too long", 413, { maxLength: URL_MAX });
+    if (!urlMode && contentIn.length > TEXT_MAX) return replyError(req, url, "text_too_long", "Text too long", 413, { maxLength: TEXT_MAX });
+    if (urlMode && !parseUrlSafe(contentIn)) return replyError(req, url, "malformed_url", "Malformed URL", 400);
+  }
 
   const ip = req.headers.get("cf-connecting-ip") || "0";
   if (!(await rateLimit(env, ip))) {
@@ -626,14 +627,27 @@ async function handleEdit(req, env, sub, url) {
   const tokenHash = await sha256Base64Url(token);
   if (!ctEq(tokenHash, meta.h || "")) return replyError(req, url, "invalid_token", "Invalid edit token", 403);
 
-  // Optional TTL update on edit
+  // If no new content provided, reuse existing (pure renew / ttl-only update)
+  let content = contentIn;
+  if (!content) {
+    const existing = await env.NOTES.get("n:" + sub);
+    if (existing == null) return replyError(req, url, "not_found", "Not found", 404);
+    content = existing;
+    urlMode = isUrl(content);
+  }
+
+  // Optional TTL update on edit (legacy values like "forever"/"30d"/"90d"/"1y" fall back to DEFAULT_TTL)
   const newTtlRaw = (bp.ttl || url.searchParams.get("ttl") || "").toLowerCase();
   if (newTtlRaw && !(newTtlRaw in TTL_OPTIONS)) {
     return replyError(req, url, "invalid_ttl", "Invalid ttl (use " + Object.keys(TTL_OPTIONS).join("/") + ")", 400, { allowed: Object.keys(TTL_OPTIONS) });
   }
   const ttlKey = newTtlRaw || (TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL);
-  if (newTtlRaw && newTtlRaw !== meta.t) meta.t = newTtlRaw;
-  const metaRaw = (newTtlRaw && newTtlRaw !== JSON.parse(metaRawOrig).t) ? JSON.stringify(meta) : metaRawOrig;
+  const origTtl = meta.t;
+  meta.t = ttlKey;
+  meta.ct = meta.ct || Date.now();
+  // On renew (or any edit), reset createdAt so expiresAt reflects the new window
+  if (renewFlag || newTtlRaw || contentIn) meta.ct = Date.now();
+  const metaRaw = (ttlKey !== origTtl || meta.ct !== (JSON.parse(metaRawOrig).ct || 0)) ? JSON.stringify(meta) : metaRawOrig;
 
   const ttlSec = TTL_OPTIONS[ttlKey];
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};

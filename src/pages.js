@@ -31,8 +31,15 @@ export function editorPage(opts) {
 '<title>' + BASE_HOST + ' — 临时笔记 · 短链</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
 // Brand wordmark.
-'.brand{font-family:var(--mono);font-size:clamp(2rem,7vw,2.6rem);font-weight:700;letter-spacing:-.035em;margin-bottom:.35rem;line-height:1}\n' +
+'.brand{font-family:var(--mono);font-size:clamp(2.2rem,8vw,3rem);font-weight:800;letter-spacing:-.04em;margin-bottom:.5rem;line-height:1;display:flex;align-items:baseline;flex-wrap:nowrap;min-width:0}\n' +
 '.brand .dot{color:#10b981}\n' +
+'.brand .tw{color:var(--text);display:inline-block;min-width:.1em}\n' +
+'.brand .cursor{display:inline-block;width:.08em;height:.78em;background:#10b981;vertical-align:baseline;margin-left:.05em;animation:tw-blink 1s step-end infinite;border-radius:1px;align-self:center}\n' +
+'@keyframes tw-blink{50%{opacity:0}}\n' +
+'.card{border-radius:20px;box-shadow:0 2px 12px rgba(0,0,0,.028)}\n' +
+'@media(prefers-color-scheme:dark){.card{box-shadow:0 2px 12px rgba(0,0,0,.35)}}\n' +
+'body{padding-top:clamp(20px,6vw,56px)}\n' +
+
 // Tagline: allow inline code chip to stay on same line as verb via nowrap wrapper.
 '.tagline{color:var(--muted);font-size:clamp(1rem,2.8vw,1.1rem);line-height:1.55;margin-bottom:1.5rem;max-width:34ch}\n' +
 '.tagline .kw{color:var(--text);font-family:var(--mono);font-size:.92em;font-weight:500;white-space:nowrap;background:none;padding:0}\n' +
@@ -80,7 +87,7 @@ export function editorPage(opts) {
 '</style></head><body>\n' +
 '<div class="wrap">\n' +
 '<div class="card">\n' +
-'<div class="brand">0g<span class="dot">.</span>hk</div>\n' +
+'<h1 class="brand"><span id="tw" class="tw">demo</span><span class="cursor"></span><span class="dot">.</span>0g<span class="dot">.</span>hk</h1>\n' +
 '<div class="tagline">把想说的，一秒变成一条链接。</div>\n' +
 (alertTop ? '<div class="alert-warn">' + alertTop + '</div>\n' : '') +
 '<form onsubmit="return go(event)">\n' +
@@ -110,6 +117,9 @@ export function editorPage(opts) {
 'var demos=["talk","q3-plan","read-me","demo","party","notes"],di=0;\n' +
 'function cyclePh(){if(document.activeElement===nInp||nInp.value)return;nInp.placeholder=demos[di=(di+1)%demos.length]}\n' +
 'setInterval(cyclePh,2200);cyclePh();\n' +
+'var twEl=document.getElementById("tw"),twI=0,twC=demos[0].length,twDel=true;\n' +
+'function tw(){var w=demos[twI];if(twDel){twEl.textContent=w.substring(0,--twC);if(twC===0){twDel=false;twI=(twI+1)%demos.length;setTimeout(tw,500);return}}else{twEl.textContent=w.substring(0,++twC);if(twC===w.length){twDel=true;setTimeout(tw,1800);return}}setTimeout(tw,twDel?55:105)}\n' +
+'setTimeout(tw,1500);\n' +
 'function updateCta(){var v=ta.value.trim();if(!v){submitBtn.textContent="生成 →";th.textContent="";return}if(/^https?:\\/\\//i.test(v)){submitBtn.textContent="生成短链 →";th.textContent="URL · 302 短链"}else{submitBtn.textContent="生成笔记 →";th.textContent=v.length+" 字 · 笔记页"}}\n' +
 'ta.addEventListener("input",updateCta);updateCta();\n' +
 'function checkName(){var v=nInp.value.trim().toLowerCase();if(!v){setStatus("","");setErr(false);nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/.test(v)){setStatus("格式：小写字母/数字/-，2–32 位，首尾非 -","err");setErr(true);nameAvailable=false;return}setStatus("检查中…","pending");fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(nInp.value.trim().toLowerCase()!==v)return;if(!d.valid){setStatus("不可用：保留名或格式无效","err");setErr(true);nameAvailable=false}else if(d.exists){setStatus("已被占用（本人创建请用编辑链接）","warn");setErr(false);nameAvailable=false}else{setStatus("✓ 可用","ok");setErr(false);nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +

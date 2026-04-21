@@ -175,7 +175,6 @@ export function resultPage(name, content, mode, ttlKey, editToken) {
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + header + ' · ' + esc(name) + '</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
-'.card{max-width:520px}\n' +
 'h1{font-size:1.05rem;font-weight:600;margin:0 0 1rem;display:flex;gap:.5rem;align-items:center;letter-spacing:-.005em}\n' +
 'h1 .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);display:inline-block;flex:0 0 auto}\n' +
 '.type{padding:.12rem .5rem;border-radius:999px;font-size:.7rem;font-weight:600;letter-spacing:.01em}\n' +

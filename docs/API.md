@@ -153,6 +153,14 @@ curl -sS 'https://0g.hk/exists?n=foo'
 # => {"valid":true,"exists":false}
 ```
 
+不可用时会返回细分原因：
+
+```json
+{"valid":false,"reason":"reserved"}
+{"valid":false,"reason":"brand","term":"apple"}
+{"valid":false,"reason":"invalid"}
+```
+
 ## 错误
 
 所有错误响应（JSON 模式下）：
@@ -167,6 +175,7 @@ curl -sS 'https://0g.hk/exists?n=foo'
 | 400  | `missing_token`    | 编辑缺 token                       |
 | 400  | `invalid_name`     | 名字格式不合法                     |
 | 400  | `reserved_name`    | 预留名                             |
+| 400  | `brand_blocked`    | 名字包含品牌/钓鱼高风险词         |
 | 400  | `invalid_ttl`      | TTL 值无效（返回 `allowed` 数组）  |
 | 400  | `malformed_url`    | URL 解析失败                       |
 | 400  | `bad_body`         | POST body 无法解析                 |
@@ -180,7 +189,7 @@ curl -sS 'https://0g.hk/exists?n=foo'
 | 500  | `corrupt_meta`     | 元数据损坏（应上报）               |
 | 500  | `alloc_failed`     | 随机名 6 次仍冲突（应上报）        |
 
-HTML 模式下错误仅 `text/plain` 短消息（不变），方便浏览器显示。
+HTML 模式下错误会返回带样式的错误页；JSON 模式仍返回结构化错误对象。
 
 ## 浏览器兼容
 

@@ -3,14 +3,17 @@
 import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, TEXT_MAX, URL_MAX, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
 import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName } from "./util.js";
 import { aiModerate, checkSafeBrowsing } from "./moderation.js";
-import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, llmsTextResponse, footerHtml } from "./responses.js";
+import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, llmsTextResponse, statusPage } from "./responses.js";
 import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./pages.js";
 import { handleAdmin } from "./admin.js";
 
 async function handleExists(env, url) {
   const n = normalizeName(url.searchParams.get("n"));
   if (!n) return jsonResponse({ valid: false, reason: "empty" });
-  if (!NAME_RE.test(n) || RESERVED.has(n)) return jsonResponse({ valid: false, reason: "invalid" });
+  if (!NAME_RE.test(n)) return jsonResponse({ valid: false, reason: "invalid" });
+  if (RESERVED.has(n)) return jsonResponse({ valid: false, reason: "reserved" });
+  const brand = isBrandSquatting(n);
+  if (brand) return jsonResponse({ valid: false, reason: "brand", term: brand });
   const existing = await env.NOTES.get("n:" + n);
   return jsonResponse({ valid: true, exists: existing !== null });
 }
@@ -202,8 +205,13 @@ async function handleAbuseReport(req, env, sub, url) {
     }
   }
   if (wantsJson(req, url)) return jsonResponse({ ok: true, name: sub, reports: count, disabled, deduped: !!already });
-  const body = '<div class="wrap"><div class="card"><h2 style="margin:0 0 8px">举报已提交</h2><p class="muted">感谢协助维护社区安全。' + (disabled ? '该链接已被自动禁用。' : ('累计举报：' + count + ' 次。')) + '</p><p><a class="btn ghost" href="https://' + BASE_HOST + '/">返回首页</a></p></div>' + footerHtml() + '</div>';
-  return html(body, 200);
+  return statusPage({
+    title: "举报已提交",
+    message: disabled ? "该链接已被自动禁用。" : ("累计举报：" + count + " 次。"),
+    detailsHtml: '<p class="muted">感谢协助维护社区安全。</p>',
+    tone: disabled ? "warn" : "ok",
+    status: 200,
+  });
 }
 
 async function handleSubdomain(req, env, host, url) {
@@ -219,8 +227,13 @@ async function handleSubdomain(req, env, host, url) {
   const disabledRaw = await env.NOTES.get("d:" + sub);
   if (disabledRaw) {
     if (wantsJson(req, url)) return jsonError("disabled", "Content disabled due to abuse reports", 410, { name: sub });
-    const body = '<div class="wrap"><div class="card"><h2 style="margin:0 0 8px">内容已禁用</h2><p class="muted">该短链/笔记因举报被系统自动禁用，若系误判请通过 <a href="mailto:' + ABUSE_EMAIL + '">' + ABUSE_EMAIL + '</a> 申诉。</p><p><a class="btn ghost" href="https://' + BASE_HOST + '/">返回首页</a></p></div>' + footerHtml() + '</div>';
-    return html(body, 410);
+    return statusPage({
+      title: "内容已禁用",
+      message: "该短链/笔记因举报被系统自动禁用。",
+      detailsHtml: '<p class="muted">若系误判，请通过 <a href="mailto:' + ABUSE_EMAIL + '">' + ABUSE_EMAIL + "</a> 申诉。</p>",
+      tone: "warn",
+      status: 410,
+    });
   }
 
   if (url.searchParams.has("edit") || req.method === "POST" || req.method === "PUT") return handleEdit(req, env, sub, url);

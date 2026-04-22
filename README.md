@@ -49,7 +49,7 @@ curl -sS -H 'Accept: application/json' -H 'Content-Type: application/json' \
 | `GET  0g.hk/` · 浏览器 | HTML 首页（带案例、创建入口） |
 | `GET  0g.hk/` · curl/AI | 纯文本 usage 手册 |
 | `GET  0g.hk/llms.txt` | 永远纯文本 usage 手册 |
-| `GET  0g.hk/exists?n=foo` | `{valid,exists}` 校验 |
+| `GET  0g.hk/exists?n=foo` | `{valid,exists,reason?}` 名字校验 |
 | `GET  <sub>.0g.hk` | 302 跳转 · 跳转中间页 · 笔记页（视内容/白名单） |
 | `GET  <sub>.0g.hk/raw` | 原文 + metadata headers |
 | `GET  <sub>.0g.hk/edit` | 编辑器 UI（token 放 URL hash） |

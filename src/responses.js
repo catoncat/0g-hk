@@ -1,7 +1,7 @@
 // Response helpers: security headers, html/json responses, CSS theme, footer/promo, llms.txt,
 // note-meta headers, and request body parsing.
 import { BASE_HOST, API_VERSION, TTL_OPTIONS, TEXT_MAX, URL_MAX, RATE_LIMIT, DEFAULT_TTL, ABUSE_EMAIL } from "./constants.js";
-import { shortUrlFor, expiresAtIso } from "./util.js";
+import { shortUrlFor, expiresAtIso, esc } from "./util.js";
 
 // Baseline security headers applied to every HTML response.
 export const SECURITY_HEADERS = {
@@ -68,6 +68,38 @@ export function headerHtml(rightSlot) {
   return '<header class="page-header"><a class="logo" href="https://' + BASE_HOST + '/">0g<span class="dot">.</span>hk</a>' + (rightSlot || '') + '</header>';
 }
 
+export function statusPage(opts) {
+  opts = opts || {};
+  const title = opts.title || "提示";
+  const message = opts.message || "";
+  const code = opts.code || "";
+  const status = opts.status || 200;
+  const tone = opts.tone || "info";
+  const detailsHtml = opts.detailsHtml || "";
+  const primaryHref = opts.primaryHref || ("https://" + BASE_HOST + "/");
+  const primaryLabel = opts.primaryLabel || "返回首页";
+  const secondaryHref = opts.secondaryHref || "";
+  const secondaryLabel = opts.secondaryLabel || "";
+  const toneClass = "tone-" + tone;
+  const secondaryAction = (secondaryHref && secondaryLabel)
+    ? '<a class="btn ghost" href="' + esc(secondaryHref) + '">' + esc(secondaryLabel) + '</a>'
+    : "";
+  const codeBlock = code
+    ? '<p class="muted">错误码：<span class="mono">' + esc(code) + "</span></p>"
+    : "";
+  const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="robots" content="noindex"><title>' + esc(title) + " · " + BASE_HOST + '</title><style>' + COMMON_CSS +
+    '.status-card{max-width:560px;margin:0 auto}.status-card h1{margin:0 0 .65rem;font-size:1.15rem}.status-card .lead{margin:0 0 .75rem;font-size:.95rem;line-height:1.6}.status-card .actions{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:1rem}.status-card.tone-error{border-left:3px solid var(--err)}.status-card.tone-warn{border-left:3px solid var(--warn)}.status-card.tone-ok{border-left:3px solid var(--ok)}.status-card.tone-info{border-left:3px solid var(--border-strong)}.status-card .rich{margin:.75rem 0 0}.status-card .rich p:last-child{margin-bottom:0}' +
+    '</style></head><body><div class="wrap">' + headerHtml() + '<div class="card status-card ' + toneClass + '">' +
+    '<h1>' + esc(title) + "</h1>" +
+    (message ? '<p class="lead">' + esc(message) + "</p>" : "") +
+    (detailsHtml ? '<div class="rich">' + detailsHtml + "</div>" : "") +
+    codeBlock +
+    '<div class="actions"><a class="btn primary" href="' + esc(primaryHref) + '">' + esc(primaryLabel) + "</a>" + secondaryAction + "</div>" +
+    "</div>" + footerHtml() + "</div></body></html>";
+  return html(body, status);
+}
+
 export function promoCardHtml() {
   return '<a class="promo" href="https://' + BASE_HOST + '/">' +
     '<span class="promo-t">你也能用 0g<span class="promo-dot">.</span>hk 创建一个</span>' +
@@ -113,13 +145,13 @@ export function jsonError(code, message, status = 400, details) {
 
 export function replyError(req, url, code, message, status, details) {
   if (wantsJson(req, url)) return jsonError(code, message, status, details);
-  const body = '<div class="wrap"><div class="card">' +
-    '<h2 style="margin:0 0 8px">失败了</h2>' +
-    '<p class="err" style="margin:0 0 8px">' + message + '</p>' +
-    '<p class="muted">错误码：<span class="mono">' + code + '</span></p>' +
-    '<p><a class="btn ghost" href="https://' + BASE_HOST + '/">返回首页</a></p>' +
-    '</div>' + footerHtml() + '</div>';
-  return html(body, status);
+  return statusPage({
+    status,
+    tone: "error",
+    title: "失败了",
+    message,
+    code,
+  });
 }
 
 // ---- note meta HTTP headers ----

@@ -60,7 +60,8 @@ export function editorPage(opts) {
 '.name-wrap.err{border-color:var(--err)}\n' +
 // Status line beneath name (availability check).
 '.name-status{display:block;min-height:1.1em;margin-top:.4rem;font-size:.76rem;color:var(--faint);line-height:1.4}\n' +
-'.name-status.ok{color:var(--ok)}.name-status.warn{color:var(--warn)}.name-status.err{color:var(--err)}\n' +
+'.name-status.ok{color:var(--ok)}.name-status.warn{color:var(--warn)}.name-status.err{color:var(--err)}.name-status.pending{color:var(--faint)}\n' +
+'.alert-warn{margin:0 0 1rem;padding:.8rem .95rem;border-radius:10px;background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn-fg);font-size:.82rem;line-height:1.55}\n' +
 // Action row: TTL chips (left) + submit button (right). Wraps on narrow screens.
 '.action{display:flex;gap:.6rem .85rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:1rem}\n' +
 '.ttl-row{display:flex;gap:.4rem;align-items:center;font-size:.78rem;color:var(--muted);flex-wrap:wrap}\n' +
@@ -113,6 +114,8 @@ export function editorPage(opts) {
 'var checkTimer=null,nameAvailable=null;\n' +
 'function setErr(on){if(on)nw.classList.add("err");else nw.classList.remove("err")}\n' +
 'function setStatus(msg,cls){ns.textContent=msg;ns.className="name-status "+(cls||"")}\n' +
+'function normalizeNameInput(v){return v.replace(/[_\\s]+/g,"-").toLowerCase()}\n' +
+'function nameStatusForReason(d){if(d.reason==="reserved")return{msg:"不可用：系统保留名",cls:"err"};if(d.reason==="brand")return{msg:"不可用：包含保留品牌词 “"+(d.term||"高风险词")+"”",cls:"err"};if(d.reason==="invalid")return{msg:"格式：小写字母/数字/-",cls:"err"};return{msg:"不可用",cls:"err"}}\n' +
 // Rotating placeholder hints that name is customizable.
 'var demos=["talk","q3-plan","read-me","demo","party","notes"],di=0;\n' +
 'function cyclePh(){if(document.activeElement===nInp||nInp.value)return;nInp.placeholder=demos[di=(di+1)%demos.length]}\n' +
@@ -122,11 +125,11 @@ export function editorPage(opts) {
 'setTimeout(tw,1500);\n' +
 'function updateCta(){var v=ta.value.trim();if(!v){submitBtn.textContent="生成 →";th.textContent="";return}if(/^https?:\\/\\//i.test(v)){submitBtn.textContent="生成短链 →";th.textContent="URL · 302 短链"}else{submitBtn.textContent="生成笔记 →";th.textContent=v.length+" 字 · 笔记页"}}\n' +
 'ta.addEventListener("input",updateCta);updateCta();\n' +
-'function checkName(){var v=nInp.value.replace(/[_\s]+/g,"-").toLowerCase();nInp.value=v;if(!v){setStatus("","");setErr(false);nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(v)){setStatus("格式：小写字母/数字/-","err");setErr(true);nameAvailable=false;return}setStatus("检查中…","pending");fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(nInp.value.replace(/[_\s]+/g,"-").toLowerCase()!==v)return;if(!d.valid){setStatus("不可用：保留名或格式无效","err");setErr(true);nameAvailable=false}else if(d.exists){setStatus("已被占用（本人创建请用编辑链接）","warn");setErr(false);nameAvailable=false}else{setStatus("✓ 可用","ok");setErr(false);nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +
+'function checkName(){var v=normalizeNameInput(nInp.value);nInp.value=v;if(!v){setStatus("","");setErr(false);nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(v)){setStatus("格式：小写字母/数字/-","err");setErr(true);nameAvailable=false;return}setStatus("检查中…","pending");fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(normalizeNameInput(nInp.value)!==v)return;if(!d.valid){var s=nameStatusForReason(d);setStatus(s.msg,s.cls);setErr(true);nameAvailable=false}else if(d.exists){setStatus("已被占用（本人创建请用编辑链接）","warn");setErr(false);nameAvailable=false}else{setStatus("✓ 可用","ok");setErr(false);nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +
 'nInp.addEventListener("input",function(){clearTimeout(checkTimer);checkTimer=setTimeout(checkName,500)});\n' +
 'if(nInp.value)checkName();\n' +
 'function getTtl(){var r=document.querySelector(\'input[name="ttl"]:checked\');return r?r.value:"' + DEFAULT_TTL + '"}\n' +
-'function go(e){e.preventDefault();var nameVal=nInp.value.replace(/[_\s]+/g,"-").toLowerCase();nInp.value=nameVal;if(nameVal&&nameAvailable===false){setErr(true);nInp.focus();return false}var c=ta.value;var t=getTtl();var p=new URLSearchParams();if(nameVal)p.set("n",nameVal);p.set("c",c);if(t&&t!=="' + DEFAULT_TTL + '")p.set("ttl",t);location.href="/?"+p.toString();return false}\n' +
+'function go(e){e.preventDefault();var nameVal=normalizeNameInput(nInp.value);nInp.value=nameVal;if(nameVal&&nameAvailable===false){setErr(true);nInp.focus();return false}var c=ta.value;var t=getTtl();var p=new URLSearchParams();if(nameVal)p.set("n",nameVal);p.set("c",c);if(t&&t!=="' + DEFAULT_TTL + '")p.set("ttl",t);location.href="/?"+p.toString();return false}\n' +
 '</script>\n' +
 '</body></html>';
   return html(body);

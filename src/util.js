@@ -128,3 +128,7 @@ export function expiresAtIso(ttlKey, createdAtMs) {
 }
 
 export { NAME_RE };
+
+export function normalizeName(s) {
+  return String(s || "").replace(/[_\s]+/g, "-").toLowerCase();
+}

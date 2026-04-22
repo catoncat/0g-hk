@@ -32,7 +32,7 @@ curl -sS -H 'Accept: application/json' -H 'Content-Type: application/json' \
 | 项 | 值 |
 |---|---|
 | 内容类型 | 文本（≤ 8KB）或 URL（≤ 2KB） |
-| 子域名 | `[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?`，2–32 字符，首尾非 `-` |
+| 子域名 | 小写字母/数字/-（空格/下划线自动转 -） |
 | TTL | `1h` / `1d` / `7d`，默认 `7d`，**最长 7 天** |
 | 续期 | `POST <sub>.0g.hk/?edit=<token>&renew=1`，重置到期窗口 |
 | 编辑 token | 创建时返回一次，KV 只存 hash。丢了就改不了 |

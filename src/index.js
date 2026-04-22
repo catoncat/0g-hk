@@ -1,14 +1,14 @@
 // 0g.hk Worker — entry + core handlers (create/edit/subdomain/abuse/exists).
 // Presentation, gates, storage, and admin are in sibling modules.
 import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, TEXT_MAX, URL_MAX, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
-import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso } from "./util.js";
+import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName } from "./util.js";
 import { aiModerate, checkSafeBrowsing } from "./moderation.js";
 import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, llmsTextResponse, footerHtml } from "./responses.js";
 import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./pages.js";
 import { handleAdmin } from "./admin.js";
 
 async function handleExists(env, url) {
-  const n = (url.searchParams.get("n") || "").toLowerCase().trim();
+  const n = normalizeName(url.searchParams.get("n"));
   if (!n) return jsonResponse({ valid: false, reason: "empty" });
   if (!NAME_RE.test(n) || RESERVED.has(n)) return jsonResponse({ valid: false, reason: "invalid" });
   const existing = await env.NOTES.get("n:" + n);
@@ -20,7 +20,7 @@ async function handleCreate(req, env, url) {
   if (!bodyRes.ok) return replyError(req, url, "bad_body", bodyRes.err, 400);
   const bp = bodyRes.body || {};
 
-  let name = (bp.name || url.searchParams.get("n") || "").toLowerCase().trim();
+  let name = normalizeName(bp.name || url.searchParams.get("n"));
   const rawContent = bp.content || url.searchParams.get("c") || "";
   if (!rawContent) {
     if (wantsJson(req, url)) return jsonError("missing_content", "content is required (body or ?c=)", 400);
@@ -34,7 +34,7 @@ async function handleCreate(req, env, url) {
   if (urlMode && !parseUrlSafe(content)) return replyError(req, url, "malformed_url", "Malformed URL", 400);
 
   if (name) {
-    if (!NAME_RE.test(name)) return replyError(req, url, "invalid_name", "Invalid name (need [a-z0-9-]{2,32}, alnum ends)", 400);
+    if (!NAME_RE.test(name)) return replyError(req, url, "invalid_name", "Invalid name (小写字母/数字/-)", 400, { name });
     if (RESERVED.has(name)) return replyError(req, url, "reserved_name", "Reserved name", 400, { name });
   }
 

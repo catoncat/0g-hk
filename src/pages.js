@@ -1,7 +1,7 @@
 // Page renderers (editor, result, note, interstitial, editNote, notFound).
 // Extracted verbatim from src/index.js.
 import { BASE_HOST, TTL_OPTIONS, DEFAULT_TTL, ABUSE_EMAIL } from "./constants.js";
-import { esc, shortUrlFor, isUrl, parseUrlSafe } from "./util.js";
+import { esc, shortUrlFor, isUrl, parseUrlSafe, isAllowedTarget } from "./util.js";
 import { renderMarkdown } from "./markdown.js";
 import { COMMON_CSS, html, footerHtml, headerHtml, promoCardHtml } from "./responses.js";
 
@@ -141,85 +141,93 @@ export function resultPage(name, content, mode, ttlKey, editToken) {
   const short = "https://" + name + "." + BASE_HOST;
   const editUrl = editToken ? (short + "/edit#t=" + editToken) : null;
   const link = isUrl(content);
-  const typeClass = link ? "link" : "note";
   const allowed = link && isAllowedTarget(content);
-  const typeLabel = link ? (allowed ? "302 直跳" : "需确认") : "笔记";
   const header = mode === "updated" ? "已更新" : "已创建";
   const ttlMap = { "1h": "1 小时", "1d": "1 天", "7d": "7 天" };
   const ttlDisplay = ttlKey ? (ttlMap[ttlKey] || ttlKey) : null;
   const qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + encodeURIComponent(short);
   const hostForHint = link ? ((parseUrlSafe(content) || {}).hostname || '') : '';
 
-  // The edit URL is sensitive and one-time; expose it as a compact copy action instead of a visible field.
+
+  // Status sub-line: "已创建 · 1 天后过期"
+  const statusLine = '<div class="status">' + esc(header) +
+    (ttlDisplay ? ' · ' + esc(ttlDisplay) + '后过期' : '') + '</div>';
+
+  // Security: only surface the warning interstitial hint when target is NOT allowlisted.
+  // Success path is silent — users don't need a green checkmark on every create.
+  const whitelistBlock = (link && !allowed)
+    ? ('<div class="wl wl-warn"><span class="wl-ic">🛡️</span><span><code>' + esc(hostForHint) + '</code> 不在白名单，访问者会先看到跳转确认页。</span></div>\n')
+    : '';
+
+  // Edit URL is sensitive and one-time. Single ghost button + tiny hint, nothing more.
   const editBlock = editUrl ? (
-    '<div class="edit-row">\n' +
-    '<span><strong>编辑权限只显示一次</strong><small>关掉本页后无法找回</small></span>\n' +
-    '<button type="button" class="btn ghost" data-copy="' + esc(editUrl) + '" data-label="复制编辑链接" onclick="copyFromButton(this)">复制编辑链接</button>\n' +
+    '<div class="edit-block">\n' +
+    '<button type="button" class="btn ghost edit-btn" data-copy="' + esc(editUrl) + '" data-label="🔑 复制编辑链接（仅一次）" onclick="copyFromButton(this)">🔑 复制编辑链接（仅一次）</button>\n' +
+    '<small class="edit-hint">关掉就拿不回了</small>\n' +
     '</div>\n'
   ) : '';
 
-  // Whitelist hint — single compact line. Only shown for links.
-  const whitelistBlock = (link && !allowed)
-    ? ('<div class="wl wl-warn"><span class="wl-ic">🛡️</span><span><code>' + esc(hostForHint) + '</code> 不在白名单，访问者会先看到跳转确认页。</span></div>\n')
-    : (link && allowed)
-      ? ('<div class="wl wl-ok"><span class="wl-ic">✓</span><span><code>' + esc(hostForHint) + '</code> 在白名单，访问者直接 302 跳转。</span></div>\n')
-      : '';
-
-  // Meta rows — 2-col definition grid instead of loose br-separated lines.
+  // Collapsed details: QR + raw + (for links) target preview. Hidden by default.
   const targetRow = link
-    ? ('<dt>目标</dt><dd><a href="' + esc(content.trim()) + '" rel="noopener">' + esc(content.trim().slice(0, 80)) + (content.trim().length > 80 ? '…' : '') + '</a></dd>')
-    : ('<dt>长度</dt><dd>' + content.length + ' 字符</dd>');
-  const ttlRow = ttlDisplay ? ('<dt>保留</dt><dd>' + esc(ttlDisplay) + '</dd>') : '';
-  const metaHtml = '<dl class="meta">' +
-    '<dt>原文</dt><dd><a href="' + esc(short) + '/raw">/raw</a></dd>' +
-    targetRow + ttlRow +
-    '</dl>';
+    ? ('<div class="d-row"><span class="d-k">目标</span><a class="d-v" href="' + esc(content.trim()) + '" rel="noopener">' + esc(content.trim().slice(0, 80)) + (content.trim().length > 80 ? '…' : '') + '</a></div>')
+    : ('<div class="d-row"><span class="d-k">长度</span><span class="d-v">' + content.length + ' 字符</span></div>');
+  const moreBlock =
+    '<details class="more">\n' +
+    '<summary>更多（二维码 / 原文）</summary>\n' +
+    '<div class="more-body">\n' +
+    '<div class="qr"><img alt="QR" src="' + esc(qrSrc) + '" width="160" height="160" loading="lazy"></div>\n' +
+    '<div class="d-row"><span class="d-k">原文</span><a class="d-v" href="' + esc(short) + '/raw">/raw</a></div>\n' +
+    targetRow +
+    '</div>\n' +
+    '</details>\n';
 
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + header + ' · ' + esc(name) + '</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
-'h1{font-size:1.05rem;font-weight:600;margin:0 0 1rem;display:flex;gap:.5rem;align-items:center;letter-spacing:-.005em}\n' +
-'h1 .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);display:inline-block;flex:0 0 auto}\n' +
-'.type{padding:.12rem .5rem;border-radius:999px;font-size:.7rem;font-weight:600;letter-spacing:.01em}\n' +
-'.type.link{background:#e0f2fe;color:#0369a1}\n' +
-'.type.note{background:#fef3c7;color:#92400e}\n' +
-'@media(prefers-color-scheme:dark){.type.link{background:rgba(14,165,233,.18);color:#7dd3fc}.type.note{background:rgba(251,191,36,.18);color:#fcd34d}}\n' +
-'.url{display:flex;gap:.5rem;margin-bottom:0;align-items:stretch}\n' +
-'.url input{flex:1;font-family:var(--mono);font-size:.95rem;padding:.6rem .8rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);min-height:40px}\n' +
-'.url button{padding:.55rem 1rem;font-size:.88rem;min-height:40px}\n' +
-'.primary-url{margin-bottom:1rem;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.5rem;align-items:stretch}\n' +
-'.short-link{display:flex;align-items:center;min-width:0;min-height:42px;padding:.62rem .8rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:var(--mono);font-size:.95rem;text-decoration:none;word-break:break-all;line-height:1.35}\n' +
-'@media(hover:hover){.short-link:hover{border-color:var(--border-strong);background:var(--surface-2)}}\n' +
-'.open-link{display:inline-flex;align-items:center;justify-content:center;min-height:42px;white-space:nowrap}\n' +
-'.edit-row{margin:0 0 1rem;padding:.7rem .8rem;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.75rem;color:var(--muted);font-size:.82rem;line-height:1.45}\n' +
-'.edit-row strong{display:block;color:var(--text);font-weight:600;font-size:.84rem}\n' +
-'.edit-row small{display:block;color:var(--faint);font-size:.74rem}\n' +
-'.edit-row .btn{min-height:34px;white-space:nowrap;background:var(--surface)}\n' +
-'@media(max-width:560px){.primary-url{grid-template-columns:1fr 1fr}.short-link{grid-column:1/-1}.primary-url .btn{width:100%;text-align:center}.edit-row{align-items:flex-start;flex-direction:column}.edit-row .btn{width:100%;justify-content:center}}\n' +
-'.wl{display:flex;gap:.5rem;align-items:flex-start;margin:0 0 1rem;padding:.6rem .8rem;border-radius:8px;font-size:.8rem;line-height:1.5}\n' +
+'body{padding-top:clamp(20px,6vw,56px)}\n' +
+'.card{border-radius:20px;box-shadow:0 2px 12px rgba(0,0,0,.028)}\n' +
+'@media(prefers-color-scheme:dark){.card{box-shadow:0 2px 12px rgba(0,0,0,.35)}}\n' +
+'.brand{font-family:var(--mono);font-size:clamp(2rem,7vw,2.6rem);font-weight:800;letter-spacing:-.04em;line-height:1;text-align:center;margin:0 0 .4rem}\n' +
+'.brand .dot{color:#10b981}\n' +
+'.status{text-align:center;color:var(--faint);font-size:.82rem;margin:0 0 1.4rem;letter-spacing:.005em}\n' +
+'.url-card{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.4rem;align-items:stretch;border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:.4rem .4rem .4rem .85rem;margin-bottom:1.4rem}\n' +
+'.url-card .short-link{display:flex;align-items:center;min-width:0;font-family:var(--mono);font-size:.95rem;color:var(--text);text-decoration:none;word-break:break-all;line-height:1.35;padding:.3rem 0}\n' +
+'@media(hover:hover){.url-card .short-link:hover{opacity:.75}}\n' +
+'.url-card .btn{min-height:36px;padding:0 .9rem;font-size:.85rem;white-space:nowrap}\n' +
+'@media(max-width:520px){.url-card{grid-template-columns:1fr 1fr;padding:.6rem}.url-card .short-link{grid-column:1/-1;padding:.4rem .25rem .35rem}.url-card .btn{justify-content:center}}\n' +
+'.edit-block{margin:0 0 1.4rem;text-align:center}\n' +
+'.edit-block .edit-btn{width:100%;min-height:44px;font-size:.9rem;background:var(--surface)}\n' +
+'.edit-block .edit-hint{display:block;color:var(--faint);font-size:.74rem;margin-top:.5rem}\n' +
+'.wl{display:flex;gap:.5rem;align-items:flex-start;margin:0 0 1.2rem;padding:.6rem .8rem;border-radius:8px;font-size:.8rem;line-height:1.5}\n' +
 '.wl .wl-ic{flex:0 0 auto;font-size:.9rem;line-height:1.4}\n' +
 '.wl code{font-family:var(--mono);background:rgba(128,128,128,.18);padding:.02rem .28rem;border-radius:3px;font-size:.9em}\n' +
 '.wl.wl-warn{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.22);color:var(--text)}\n' +
 '.wl.wl-warn code{color:var(--warn)}\n' +
-'.wl.wl-ok{background:rgba(5,150,105,.06);border:1px solid rgba(5,150,105,.22);color:var(--text)}\n' +
-'.wl.wl-ok .wl-ic{color:var(--ok);font-weight:700}\n' +
-'.meta{margin:1rem 0 0;padding:.85rem 1rem;border:1px solid var(--border);border-radius:10px;background:var(--surface);display:grid;grid-template-columns:4rem 1fr;gap:.45rem .85rem;font-size:.83rem;line-height:1.5}\n' +
-'.meta dt{color:var(--faint);font-weight:500}\n' +
-'.meta dd{color:var(--text);word-break:break-all;overflow:hidden;text-overflow:ellipsis}\n' +
-'.meta a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--border-strong)}\n' +
-'.meta a:hover{border-bottom-style:solid}\n' +
-'.qr{margin:1.25rem auto 0;width:fit-content;padding:8px;border-radius:10px;background:#fff;border:1px solid var(--border)}\n' +
-'.qr img{display:block;width:120px;height:120px}\n' +
+'.more{margin-top:.25rem;border-top:1px solid var(--border);padding-top:.85rem}\n' +
+'.more>summary{cursor:pointer;color:var(--faint);font-size:.8rem;list-style:none;padding:.2rem 0;-webkit-tap-highlight-color:transparent;user-select:none}\n' +
+'.more>summary::-webkit-details-marker{display:none}\n' +
+'.more>summary::before{content:"▸";display:inline-block;margin-right:.4rem;transition:transform .15s;font-size:.85em}\n' +
+'.more[open]>summary::before{transform:rotate(90deg)}\n' +
+'@media(hover:hover){.more>summary:hover{color:var(--text)}}\n' +
+'.more-body{padding-top:.95rem;display:flex;flex-direction:column;gap:.85rem;align-items:center}\n' +
+'.qr{padding:8px;border-radius:10px;background:#fff;border:1px solid var(--border);width:fit-content}\n' +
+'.qr img{display:block;width:160px;height:160px}\n' +
+'.d-row{display:flex;gap:.85rem;font-size:.82rem;width:100%;justify-content:space-between;align-items:baseline}\n' +
+'.d-row .d-k{color:var(--faint);flex:0 0 auto}\n' +
+'.d-row .d-v{color:var(--text);text-decoration:none;border-bottom:1px dotted var(--border-strong);word-break:break-all;text-align:right;min-width:0}\n' +
+'.d-row a.d-v:hover{border-bottom-style:solid}\n' +
+'.mini-foot{text-align:center;color:var(--faint);font-size:.72rem;margin-top:1.5rem}\n' +
+'.mini-foot a{color:inherit;text-decoration:none}\n' +
+'@media(hover:hover){.mini-foot a:hover{color:var(--text)}}\n' +
 '</style></head><body>\n' +
 '<div class="wrap">\n' +
-headerHtml() + '\n' +
 '<div class="card">\n' +
-'<h1><span class="dot"></span>' + header + '<span class="type ' + typeClass + '">' + typeLabel + '</span></h1>\n' +
-'<div class="primary-url"><a id="u" class="short-link" href="' + esc(short) + '" target="_blank" rel="noopener noreferrer">' + esc(short) + '</a><button type="button" class="btn ghost" data-copy="' + esc(short) + '" data-label="复制" onclick="copyFromButton(this)">复制</button><a class="btn primary open-link" href="' + esc(short) + '" target="_blank" rel="noopener noreferrer">打开</a></div>\n' +
- whitelistBlock + editBlock + metaHtml + '\n' +
-'<div class="qr"><img alt="QR" src="' + esc(qrSrc) + '" width="120" height="120" loading="lazy"></div>\n' +
+'<h1 class="brand">0g<span class="dot">.</span>hk<span class="dot">.</span></h1>\n' +
+ statusLine + '\n' +
+'<div class="url-card"><a class="short-link" href="' + esc(short) + '" target="_blank" rel="noopener noreferrer">' + esc(short) + '</a><button type="button" class="btn ghost" data-copy="' + esc(short) + '" data-label="复制" onclick="copyFromButton(this)">复制</button><a class="btn primary" href="' + esc(short) + '" target="_blank" rel="noopener noreferrer">打开</a></div>\n' +
+ whitelistBlock + editBlock + moreBlock +
 '</div>\n' +
-footerHtml() + '\n' +
+'<div class="mini-foot"><a href="https://' + BASE_HOST + '/">' + BASE_HOST + '</a></div>\n' +
 '</div>\n' +
 '<script>function copyFromButton(b){var label=b.getAttribute("data-label")||"复制";navigator.clipboard.writeText(b.getAttribute("data-copy")||"").then(function(){b.textContent="已复制";setTimeout(function(){b.textContent=label},1500)})}</script>\n' +
 '</body></html>';

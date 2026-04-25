@@ -2,6 +2,7 @@
 // Extracted verbatim from src/index.js.
 import { BASE_HOST, TTL_OPTIONS, DEFAULT_TTL, ABUSE_EMAIL } from "./constants.js";
 import { esc, shortUrlFor, isUrl, parseUrlSafe } from "./util.js";
+import { renderMarkdown } from "./markdown.js";
 import { COMMON_CSS, html, footerHtml, headerHtml, promoCardHtml } from "./responses.js";
 
 export function editorPage(opts) {
@@ -149,12 +150,11 @@ export function resultPage(name, content, mode, ttlKey, editToken) {
   const qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + encodeURIComponent(short);
   const hostForHint = link ? ((parseUrlSafe(content) || {}).hostname || '') : '';
 
-  // Compact edit card: title on top, inline [input + copy] row, one-line subtitle below.
+  // The edit URL is sensitive and one-time; expose it as a compact copy action instead of a visible field.
   const editBlock = editUrl ? (
-    '<div class="edit-card">\n' +
-    '<div class="ec-h">🔑 编辑链接 · 仅此一次</div>\n' +
-    '<div class="url"><input id="eu" value="' + esc(editUrl) + '" readonly onclick="this.select()"><button class="secondary" onclick="copyEdit(this)">复制</button></div>\n' +
-    '<div class="ec-s">拿到这个链接的人可以修改 <code>' + esc(name) + '</code> 的内容，关掉本页就找不回来了。</div>\n' +
+    '<div class="edit-row">\n' +
+    '<span><strong>编辑权限只显示一次</strong><small>关掉本页后无法找回</small></span>\n' +
+    '<button type="button" class="btn ghost" data-copy="' + esc(editUrl) + '" data-label="复制编辑链接" onclick="copyFromButton(this)">复制编辑链接</button>\n' +
     '</div>\n'
   ) : '';
 
@@ -184,15 +184,18 @@ export function resultPage(name, content, mode, ttlKey, editToken) {
 '.type.link{background:#e0f2fe;color:#0369a1}\n' +
 '.type.note{background:#fef3c7;color:#92400e}\n' +
 '@media(prefers-color-scheme:dark){.type.link{background:rgba(14,165,233,.18);color:#7dd3fc}.type.note{background:rgba(251,191,36,.18);color:#fcd34d}}\n' +
-'.url{display:flex;gap:.5rem;margin-bottom:0}\n' +
+'.url{display:flex;gap:.5rem;margin-bottom:0;align-items:stretch}\n' +
 '.url input{flex:1;font-family:var(--mono);font-size:.95rem;padding:.6rem .8rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);min-height:40px}\n' +
 '.url button{padding:.55rem 1rem;font-size:.88rem;min-height:40px}\n' +
-'.primary-url{margin-bottom:1rem}\n' +
-'.edit-card{margin:0 0 1rem;padding:.85rem .95rem;border-radius:10px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-left:3px solid var(--warn)}\n' +
-'.edit-card .ec-h{font-size:.82rem;font-weight:600;margin-bottom:.55rem;color:var(--warn)}\n' +
-'.edit-card .url{margin-bottom:.55rem}\n' +
-'.edit-card .ec-s{font-size:.76rem;color:var(--muted);line-height:1.5}\n' +
-'.edit-card code{font-family:var(--mono);background:rgba(128,128,128,.15);padding:.02rem .28rem;border-radius:3px;font-size:.82em}\n' +
+'.primary-url{margin-bottom:1rem;display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.5rem;align-items:stretch}\n' +
+'.short-link{display:flex;align-items:center;min-width:0;min-height:42px;padding:.62rem .8rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:var(--mono);font-size:.95rem;text-decoration:none;word-break:break-all;line-height:1.35}\n' +
+'@media(hover:hover){.short-link:hover{border-color:var(--border-strong);background:var(--surface-2)}}\n' +
+'.open-link{display:inline-flex;align-items:center;justify-content:center;min-height:42px;white-space:nowrap}\n' +
+'.edit-row{margin:0 0 1rem;padding:.7rem .8rem;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.75rem;color:var(--muted);font-size:.82rem;line-height:1.45}\n' +
+'.edit-row strong{display:block;color:var(--text);font-weight:600;font-size:.84rem}\n' +
+'.edit-row small{display:block;color:var(--faint);font-size:.74rem}\n' +
+'.edit-row .btn{min-height:34px;white-space:nowrap;background:var(--surface)}\n' +
+'@media(max-width:560px){.primary-url{grid-template-columns:1fr 1fr}.short-link{grid-column:1/-1}.primary-url .btn{width:100%;text-align:center}.edit-row{align-items:flex-start;flex-direction:column}.edit-row .btn{width:100%;justify-content:center}}\n' +
 '.wl{display:flex;gap:.5rem;align-items:flex-start;margin:0 0 1rem;padding:.6rem .8rem;border-radius:8px;font-size:.8rem;line-height:1.5}\n' +
 '.wl .wl-ic{flex:0 0 auto;font-size:.9rem;line-height:1.4}\n' +
 '.wl code{font-family:var(--mono);background:rgba(128,128,128,.18);padding:.02rem .28rem;border-radius:3px;font-size:.9em}\n' +
@@ -212,33 +215,45 @@ export function resultPage(name, content, mode, ttlKey, editToken) {
 headerHtml() + '\n' +
 '<div class="card">\n' +
 '<h1><span class="dot"></span>' + header + '<span class="type ' + typeClass + '">' + typeLabel + '</span></h1>\n' +
-'<div class="url primary-url"><input id="u" value="' + esc(short) + '" readonly onclick="this.select()"><button onclick="copyShort(this)">复制</button></div>\n' +
+'<div class="primary-url"><a id="u" class="short-link" href="' + esc(short) + '" target="_blank" rel="noopener noreferrer">' + esc(short) + '</a><button type="button" class="btn ghost" data-copy="' + esc(short) + '" data-label="复制" onclick="copyFromButton(this)">复制</button><a class="btn primary open-link" href="' + esc(short) + '" target="_blank" rel="noopener noreferrer">打开</a></div>\n' +
  whitelistBlock + editBlock + metaHtml + '\n' +
 '<div class="qr"><img alt="QR" src="' + esc(qrSrc) + '" width="120" height="120" loading="lazy"></div>\n' +
 '</div>\n' +
 footerHtml() + '\n' +
 '</div>\n' +
-'<script>function copyShort(b){navigator.clipboard.writeText(document.getElementById("u").value).then(function(){b.textContent="已复制";setTimeout(function(){b.textContent="复制"},1500)})}function copyEdit(b){navigator.clipboard.writeText(document.getElementById("eu").value).then(function(){b.textContent="已复制";setTimeout(function(){b.textContent="复制"},1500)})}</script>\n' +
+'<script>function copyFromButton(b){var label=b.getAttribute("data-label")||"复制";navigator.clipboard.writeText(b.getAttribute("data-copy")||"").then(function(){b.textContent="已复制";setTimeout(function(){b.textContent=label},1500)})}</script>\n' +
 '</body></html>';
   return html(body);
 }
 
 export function notePage(sub, content) {
-  const isShort = content.length <= 40 && !/\n/.test(content);
-  const preClass = isShort ? 'note-pre big' : 'note-pre';
+  const isShortPlain = content.length <= 40 && !/[#*_`>\[\]-]|\n/.test(content);
+  const bodyClass = isShortPlain ? 'markdown-body big' : 'markdown-body';
   const segRight =
-    '<div class="seg"><button type="button" onclick="navigator.clipboard.writeText(document.getElementById(\'c\').innerText).then(function(){var b=event.currentTarget;b.textContent=\'已复制\';setTimeout(function(){b.textContent=\'复制\'},1200)})">复制</button>' +
+    '<div class="seg"><button type="button" onclick="navigator.clipboard.writeText(document.getElementById(\'raw-copy\').value).then(function(){var b=event.currentTarget;b.textContent=\'已复制\';setTimeout(function(){b.textContent=\'复制\'},1200)})">复制</button>' +
     '<a href="/raw">原文</a></div>';
   const body = '<!DOCTYPE html>\n' +
 '<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · ' + BASE_HOST + '</title>\n' +
 '<meta name="robots" content="noindex">\n' +
 '<style>\n' + COMMON_CSS + '\n' +
-'.note-pre{white-space:pre-wrap;word-wrap:break-word;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:clamp(1rem,3vw,1.25rem);font-family:var(--mono);font-size:.95rem;line-height:1.6;color:var(--text);margin:0}\n' +
-'.note-pre.big{font-size:clamp(1.3rem,4vw,1.8rem);line-height:1.45;text-align:center;padding:clamp(1.5rem,5vw,2.25rem) clamp(1rem,3vw,1.25rem);font-weight:500}\n' +
+'.markdown-body{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:clamp(1rem,3vw,1.35rem);font-size:1rem;line-height:1.72;color:var(--text);overflow-wrap:anywhere}\n' +
+'.markdown-body>:first-child{margin-top:0}.markdown-body>:last-child{margin-bottom:0}\n' +
+'.markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4,.markdown-body h5,.markdown-body h6{line-height:1.25;margin:1.2em 0 .55em;letter-spacing:0;color:var(--text)}\n' +
+'.markdown-body h1{font-size:1.65rem}.markdown-body h2{font-size:1.35rem}.markdown-body h3{font-size:1.12rem}.markdown-body h4,.markdown-body h5,.markdown-body h6{font-size:1rem}\n' +
+'.markdown-body p{margin:.72em 0}.markdown-body a{color:inherit;text-decoration-thickness:1px;text-underline-offset:3px}.markdown-body strong{font-weight:700}.markdown-body del{color:var(--muted)}\n' +
+'.markdown-body ul,.markdown-body ol{padding-left:1.35rem;margin:.75em 0}.markdown-body li+li{margin-top:.28em}\n' +
+'.markdown-body blockquote{margin:.95em 0;padding:.1rem 0 .1rem .9rem;border-left:3px solid var(--border-strong);color:var(--muted)}\n' +
+'.markdown-body code{font-family:var(--mono);font-size:.9em;background:rgba(128,128,128,.14);border:1px solid var(--border);border-radius:4px;padding:.08rem .28rem}\n' +
+'.markdown-body pre{margin:1em 0;padding:.9rem 1rem;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;overflow:auto;line-height:1.58;-webkit-overflow-scrolling:touch}\n' +
+'.markdown-body pre code{display:block;background:transparent;border:0;border-radius:0;padding:0;white-space:pre;font-size:.88rem;color:var(--text)}\n' +
+'.markdown-body hr{border:0;border-top:1px solid var(--border);margin:1.25rem 0}\n' +
+'.markdown-body.big{font-size:clamp(1.3rem,4vw,1.8rem);line-height:1.45;text-align:center;padding:clamp(1.5rem,5vw,2.25rem) clamp(1rem,3vw,1.25rem);font-weight:500}\n' +
+'.raw-copy{position:absolute;left:-9999px;top:auto;width:1px;height:1px;opacity:0}\n' +
 '</style></head><body>\n' +
 '<div class="wrap">\n' +
 headerHtml(segRight) + '\n' +
-'<pre id="c" class="' + preClass + '">' + esc(content) + '</pre>\n' +
+'<textarea id="raw-copy" class="raw-copy" readonly>' + esc(content) + '</textarea>\n' +
+'<article id="c" class="' + bodyClass + '">' + renderMarkdown(content) + '</article>\n' +
 promoCardHtml() + '\n' +
 footerHtml() + '\n' +
 '</div>\n' +

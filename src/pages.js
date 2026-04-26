@@ -5,10 +5,6 @@ import { esc, shortUrlFor, isUrl, parseUrlSafe, isAllowedTarget } from "./util.j
 import { renderMarkdown } from "./markdown.js";
 import { COMMON_CSS, html, footerHtml, headerHtml, promoCardHtml } from "./responses.js";
 
-const ICON_CLIPBOARD = '<svg class="s-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6"/><path d="M9 4a3 3 0 0 1 6 0"/><path d="M8 6h8"/><path d="M7 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>';
-const ICON_LINK = '<svg class="s-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1"/></svg>';
-const ICON_SPARKLES = '<svg class="s-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.4 4.2L18 9l-4.6 1.8L12 15l-1.4-4.2L6 9l4.6-1.8L12 3Z"/><path d="M19 14l.7 2.1L22 17l-2.3.9L19 20l-.7-2.1L16 17l2.3-.9L19 14Z"/><path d="M5 14l.7 2.1L8 17l-2.3.9L5 20l-.7-2.1L2 17l2.3-.9L5 14Z"/></svg>';
-
 export function editorPage(opts) {
   opts = opts || {};
   const prefillContent = opts.prefillContent || "";
@@ -90,22 +86,7 @@ export function editorPage(opts) {
 // Primary submit button.
 '.action button{min-height:44px;padding:0 1.25rem;font-size:.95rem;white-space:nowrap;flex-shrink:0}\n' +
 '.type-hint{font-size:.72rem;color:var(--faint);font-family:var(--mono);margin-top:.55rem;min-height:1.1em;text-align:right;letter-spacing:.01em}\n' +
-// Scenario accordion.
-'.scn{display:flex;flex-direction:column;gap:.55rem;margin-top:1.25rem}\n' +
-'.s-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;line-height:1.5;min-width:0;overflow:hidden}\n' +
-'.s-head{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:.55rem;align-items:center;padding:.72rem .9rem;cursor:pointer;list-style:none;-webkit-tap-highlight-color:transparent}\n' +
-'.s-head::-webkit-details-marker{display:none}\n' +
-'.s-icon{width:1rem;height:1rem;flex:0 0 1rem;color:var(--muted);stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}\n' +
-'.s-title{font-weight:600;color:var(--text);font-size:.9rem}\n' +
-'.s-desc{color:var(--muted);font-size:.8rem;line-height:1.5;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n' +
-'.s-chev{color:var(--faint);font-size:.9rem;transition:transform .15s}\n' +
-'.s-card[open] .s-chev{transform:rotate(90deg)}\n' +
-'.s-body{padding:0 .9rem .9rem;display:grid;gap:.65rem}\n' +
-'.s-card pre{font-family:var(--mono);font-size:.78rem;background:rgba(128,128,128,.08);padding:.7rem .75rem;border-radius:7px;color:var(--text);overflow-x:auto;white-space:pre-wrap;line-height:1.55;margin:0;-webkit-overflow-scrolling:touch}\n' +
-'.s-card pre::-webkit-scrollbar{height:0}\n' +
-'.s-action{justify-self:start;min-height:32px;padding:0 .75rem;border:1px solid var(--border-strong);border-radius:7px;background:transparent;color:var(--text);font:inherit;font-size:.8rem;cursor:pointer}\n' +
-'@media(hover:hover){.s-action:hover{background:var(--surface-2)}}\n' +
-'@media(max-width:560px){.md-bar{align-items:flex-start;flex-direction:column}.s-head{grid-template-columns:auto minmax(0,1fr) auto}.s-desc{display:none}}\n' +
+'@media(max-width:560px){.md-bar{align-items:flex-start;flex-direction:column}}\n' +
 '</style></head><body>\n' +
 '<div class="wrap">\n' +
 '<div class="card">\n' +
@@ -129,11 +110,6 @@ export function editorPage(opts) {
 '<button type="submit" id="submitBtn">生成 →</button></div>\n' +
 '</form>\n' +
 '</div>\n' +
-'<section class="scn" aria-label="用法">\n' +
-'<details class="s-card" open><summary class="s-head">' + ICON_CLIPBOARD + '<span class="s-title">写笔记</span><span class="s-desc">Markdown / 清单 / 代码</span><span class="s-chev">›</span></summary><div class="s-body"><pre>## 今天要做\n- 约时间\n- 发链接\n- 留个备注</pre><button type="button" class="s-action" data-sample="note">填入编辑器</button></div></details>\n' +
-'<details class="s-card"><summary class="s-head">' + ICON_LINK + '<span class="s-title">缩短链接</span><span class="s-desc">粘贴 URL</span><span class="s-chev">›</span></summary><div class="s-body"><pre>https://chen.rs</pre><button type="button" class="s-action" data-sample="link">填入编辑器</button></div></details>\n' +
-'<details class="s-card"><summary class="s-head">' + ICON_SPARKLES + '<span class="s-title">保存 Prompt</span><span class="s-desc">给 AI 的上下文</span><span class="s-chev">›</span></summary><div class="s-body"><pre>把下面内容整理成三点摘要：</pre><button type="button" class="s-action" data-sample="prompt">填入编辑器</button></div></details>\n' +
-'</section>\n' +
  footerHtml() + '\n' +
 '</div>\n' +
 '<script>\n' +
@@ -153,9 +129,6 @@ export function editorPage(opts) {
 'function mdAction(k){setMdMode(false);if(k==="h")prefixLine("# ","标题");else if(k==="b")surround("**","**","加粗");else if(k==="i")surround("*","*","斜体");else if(k==="link")surround("[","](https://)","链接");else if(k==="list")prefixLine("- ","列表项");else if(k==="code")surround("`","`","code");ta.focus();updateCta();renderPreview()}\n' +
 'document.querySelectorAll("[data-md]").forEach(function(b){b.addEventListener("click",function(){mdAction(b.getAttribute("data-md"))})});\n' +
 'writeMode.addEventListener("click",function(){setMdMode(false)});previewMode.addEventListener("click",function(){setMdMode(true)});\n' +
-'document.querySelectorAll(".s-card").forEach(function(d){d.addEventListener("toggle",function(){if(!d.open)return;document.querySelectorAll(".s-card").forEach(function(o){if(o!==d)o.open=false})})});\n' +
-'var samples={note:"## 今天要做\\n- 约时间\\n- 发链接\\n- 留个备注",link:"https://chen.rs",prompt:"把下面内容整理成三点摘要：\\n\\n"};\n' +
-'document.querySelectorAll("[data-sample]").forEach(function(b){b.addEventListener("click",function(){var v=samples[b.getAttribute("data-sample")]||"";ta.value=v;setMdMode(false);updateCta();renderPreview();ta.focus()})});\n' +
 // Rotating placeholder hints that name is customizable.
 'var demos=["talk","q3-plan","read-me","demo","party","notes"],di=0;\n' +
 'function cyclePh(){if(document.activeElement===nInp||nInp.value)return;nInp.placeholder=demos[di=(di+1)%demos.length]}\n' +

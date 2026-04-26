@@ -59,11 +59,8 @@ export function editorPage(opts) {
 '.md-preview{display:none;min-height:7rem;padding:.85rem .95rem;line-height:1.65;overflow-wrap:anywhere;color:var(--text)}\n' +
 '.md-shell.previewing .md-preview{display:block}\n' +
 '.md-preview>:first-child{margin-top:0}.md-preview>:last-child{margin-bottom:0}.md-preview p{margin:.55em 0}.md-preview h1,.md-preview h2,.md-preview h3{line-height:1.25;margin:.8em 0 .35em}.md-preview h1{font-size:1.35rem}.md-preview h2{font-size:1.15rem}.md-preview h3{font-size:1rem}.md-preview ul,.md-preview ol{padding-left:1.2rem;margin:.55em 0}.md-preview blockquote{margin:.7em 0;padding-left:.75rem;border-left:3px solid var(--border-strong);color:var(--muted)}.md-preview code{font-family:var(--mono);font-size:.9em;background:rgba(128,128,128,.14);border:1px solid var(--border);border-radius:4px;padding:.04rem .24rem}.md-preview pre{margin:.7em 0;padding:.75rem .85rem;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;overflow:auto}.md-preview hr{border:0;border-top:1px solid var(--border);margin:1rem 0}.md-preview .empty{color:var(--faint)}\n' +
-// Field caption (small muted label above each control).
-'.cap{font-size:.76rem;color:var(--faint);margin:1rem 0 .4rem;display:flex;justify-content:space-between;align-items:baseline;gap:.5rem}\n' +
-'.cap .hint-r{color:var(--faint);font-size:.72rem}\n' +
 // Name field (full-width, with inline .0g.hk suffix).
-'.name-wrap{display:flex;align-items:stretch;border:1px solid var(--border);border-radius:8px;background:var(--surface);overflow:hidden;min-width:0;min-height:44px}\n' +
+'.name-wrap{display:flex;align-items:stretch;border:1px solid var(--border);border-radius:8px;background:var(--surface);overflow:hidden;min-width:0;min-height:44px;margin-top:1rem}\n' +
 '.name-wrap:focus-within{border-color:var(--text);box-shadow:0 0 0 3px rgba(17,17,17,.06)}\n' +
 '@media(prefers-color-scheme:dark){.name-wrap:focus-within{box-shadow:0 0 0 3px rgba(237,237,237,.08)}}\n' +
 '.name-wrap input{flex:1;min-width:0;border:0;background:transparent;padding:0 .85rem;font:inherit;font-size:1rem;color:inherit;outline:0;min-height:unset}\n' +
@@ -85,7 +82,6 @@ export function editorPage(opts) {
 '.chip input:focus-visible+span{outline:2px solid var(--text);outline-offset:2px}\n' +
 // Primary submit button.
 '.action button{min-height:44px;padding:0 1.25rem;font-size:.95rem;white-space:nowrap;flex-shrink:0}\n' +
-'.type-hint{font-size:.72rem;color:var(--faint);font-family:var(--mono);margin-top:.55rem;min-height:1.1em;text-align:right;letter-spacing:.01em}\n' +
 '@media(max-width:560px){.md-bar{align-items:flex-start;flex-direction:column}}\n' +
 '</style></head><body>\n' +
 '<div class="wrap">\n' +
@@ -94,16 +90,13 @@ export function editorPage(opts) {
 '<div class="tagline">把想说的，一秒变成一条链接。</div>\n' +
 (alertTop ? '<div class="alert-warn">' + alertTop + '</div>\n' : '') +
 '<form onsubmit="return go(event)">\n' +
-'<label for="c" class="sr">内容</label>' +
 '<div class="md-shell" id="mdShell">\n' +
 '<div class="md-bar"><div class="md-tools" aria-label="Markdown 工具">\n' +
 '<button type="button" class="md-btn" data-md="h" aria-label="标题">H</button><button type="button" class="md-btn" data-md="b" aria-label="加粗">B</button><button type="button" class="md-btn" data-md="i" aria-label="斜体"><em>I</em></button><button type="button" class="md-btn" data-md="link" aria-label="链接">[]</button><button type="button" class="md-btn" data-md="list" aria-label="列表">•</button><button type="button" class="md-btn" data-md="code" aria-label="代码">{}</button>\n' +
-'</div><div class="md-modes"><button type="button" class="md-btn active" id="writeMode">写</button><button type="button" class="md-btn" id="previewMode">预览</button></div></div>\n' +
-'<textarea id="c" required autofocus rows="5" placeholder="写 Markdown，或粘贴链接">' + esc(prefillContent) + '</textarea>\n' +
+'</div><div class="md-modes"><button type="button" class="md-btn" id="previewToggle">预览</button></div></div>\n' +
+'<textarea id="c" required autofocus rows="5" placeholder="写 Markdown，或粘贴链接" aria-label="内容">' + esc(prefillContent) + '</textarea>\n' +
 '<div class="md-preview" id="mdPreview" aria-live="polite"></div>\n' +
 '</div>\n' +
-'<div class="type-hint" id="typeHint"></div>\n' +
-'<div class="cap"><span>子域名字</span><span class="hint-r">留空 = 随机分配</span></div>\n' +
 '<div class="name-wrap' + (errorName ? ' err' : '') + '" id="nw"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" inputmode="url" pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?" placeholder="talk" aria-label="自定义子域名"><span class="suffix">.' + BASE_HOST + '</span></div>' +
 '<span id="ns" class="name-status' + (errorName ? ' err' : '') + '">' + esc(errorName) + '</span>\n' +
 '<div class="action"><div class="ttl-row"><span class="lbl">保留</span>' + ttlChips + '</div>' +
@@ -113,7 +106,7 @@ export function editorPage(opts) {
  footerHtml() + '\n' +
 '</div>\n' +
 '<script>\n' +
-'var nInp=document.getElementById("n"),nw=document.getElementById("nw"),ns=document.getElementById("ns"),submitBtn=document.getElementById("submitBtn"),ta=document.getElementById("c"),th=document.getElementById("typeHint"),mdShell=document.getElementById("mdShell"),mdPreview=document.getElementById("mdPreview"),writeMode=document.getElementById("writeMode"),previewMode=document.getElementById("previewMode");\n' +
+'var nInp=document.getElementById("n"),nw=document.getElementById("nw"),ns=document.getElementById("ns"),submitBtn=document.getElementById("submitBtn"),ta=document.getElementById("c"),mdShell=document.getElementById("mdShell"),mdPreview=document.getElementById("mdPreview"),previewToggle=document.getElementById("previewToggle");\n' +
 'var checkTimer=null,nameAvailable=null;\n' +
 'function setErr(on){if(on)nw.classList.add("err");else nw.classList.remove("err")}\n' +
 'function setStatus(msg,cls){ns.textContent=msg;ns.className="name-status "+(cls||"")}\n' +
@@ -123,12 +116,12 @@ export function editorPage(opts) {
 'function inlineMd(s){return escMd(s).replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\\*\\*([^*]+)\\*\\*/g,"<strong>$1</strong>").replace(/(^|[^*])\\*([^*]+)\\*/g,"$1<em>$2</em>").replace(/~~([^~]+)~~/g,"<del>$1</del>")}\n' +
 'function renderLiteMd(src){var lines=String(src||"").replace(/\\r\\n?/g,"\\n").split("\\n"),out=[],list="";function endList(){if(list){out.push("</"+list+">");list=""}}lines.forEach(function(line){var t=line.trim();if(!t){endList();return}var h=t.match(/^(#{1,3})\\s+(.+)$/);if(h){endList();out.push("<h"+h[1].length+">"+inlineMd(h[2])+"</h"+h[1].length+">");return}var li=t.match(/^[-*+]\\s+(.+)$/);if(li){if(list!=="ul"){endList();out.push("<ul>");list="ul"}out.push("<li>"+inlineMd(li[1])+"</li>");return}var q=t.match(/^>\\s?(.*)$/);if(q){endList();out.push("<blockquote>"+inlineMd(q[1])+"</blockquote>");return}if(/^[-*_]{3,}$/.test(t)){endList();out.push("<hr>");return}endList();out.push("<p>"+inlineMd(t)+"</p>")});endList();return out.join("")||"<p class=\\"empty\\">空白</p>"}\n' +
 'function renderPreview(){mdPreview.innerHTML=renderLiteMd(ta.value)}\n' +
-'function setMdMode(preview){mdShell.classList.toggle("previewing",preview);writeMode.classList.toggle("active",!preview);previewMode.classList.toggle("active",preview);if(preview)renderPreview();else ta.focus()}\n' +
+'function setMdMode(preview){mdShell.classList.toggle("previewing",preview);previewToggle.classList.toggle("active",preview);previewToggle.textContent=preview?"编辑":"预览";if(preview)renderPreview();else ta.focus()}\n' +
 'function surround(a,b,f){var s=ta.selectionStart,e=ta.selectionEnd,v=ta.value,x=v.slice(s,e)||f;ta.setRangeText(a+x+b,s,e,"select");ta.selectionStart=s+a.length;ta.selectionEnd=s+a.length+x.length}\n' +
 'function prefixLine(p,f){var s=ta.selectionStart,e=ta.selectionEnd,v=ta.value;if(s===e){var ls=v.lastIndexOf("\\n",s-1)+1;ta.setRangeText(p+f,ls,s,"end");ta.selectionStart=ls+p.length;ta.selectionEnd=ls+p.length+f.length;return}var x=v.slice(s,e).split("\\n").map(function(l){return p+l}).join("\\n");ta.setRangeText(x,s,e,"select")}\n' +
 'function mdAction(k){setMdMode(false);if(k==="h")prefixLine("# ","标题");else if(k==="b")surround("**","**","加粗");else if(k==="i")surround("*","*","斜体");else if(k==="link")surround("[","](https://)","链接");else if(k==="list")prefixLine("- ","列表项");else if(k==="code")surround("`","`","code");ta.focus();updateCta();renderPreview()}\n' +
 'document.querySelectorAll("[data-md]").forEach(function(b){b.addEventListener("click",function(){mdAction(b.getAttribute("data-md"))})});\n' +
-'writeMode.addEventListener("click",function(){setMdMode(false)});previewMode.addEventListener("click",function(){setMdMode(true)});\n' +
+'previewToggle.addEventListener("click",function(){setMdMode(!mdShell.classList.contains("previewing"))});\n' +
 // Rotating placeholder hints that name is customizable.
 'var demos=["talk","q3-plan","read-me","demo","party","notes"],di=0;\n' +
 'function cyclePh(){if(document.activeElement===nInp||nInp.value)return;nInp.placeholder=demos[di=(di+1)%demos.length]}\n' +
@@ -136,7 +129,7 @@ export function editorPage(opts) {
 'var twEl=document.getElementById("tw"),twI=0,twC=demos[0].length,twDel=true;\n' +
 'function tw(){var w=demos[twI];if(twDel){twEl.textContent=w.substring(0,--twC);if(twC===0){twDel=false;twI=(twI+1)%demos.length;setTimeout(tw,500);return}}else{twEl.textContent=w.substring(0,++twC);if(twC===w.length){twDel=true;setTimeout(tw,1800);return}}setTimeout(tw,twDel?55:105)}\n' +
 'setTimeout(tw,1500);\n' +
-'function updateCta(){var v=ta.value.trim();if(!v){submitBtn.textContent="生成 →";th.textContent="";return}if(/^https?:\\/\\//i.test(v)){submitBtn.textContent="生成短链 →";th.textContent="URL · 302 短链"}else{submitBtn.textContent="生成笔记 →";th.textContent=v.length+" 字 · 笔记页"}}\n' +
+'function updateCta(){var v=ta.value.trim();if(!v){submitBtn.textContent="生成 →";return}if(/^https?:\\/\\//i.test(v)){submitBtn.textContent="生成短链 →"}else{submitBtn.textContent="生成笔记 →"}}\n' +
 'ta.addEventListener("input",function(){updateCta();if(mdShell.classList.contains("previewing"))renderPreview()});updateCta();\n' +
 'function checkName(){var v=normalizeNameInput(nInp.value);nInp.value=v;if(!v){setStatus("","");setErr(false);nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(v)){setStatus("格式：小写字母/数字/-","err");setErr(true);nameAvailable=false;return}setStatus("检查中…","pending");fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(normalizeNameInput(nInp.value)!==v)return;if(!d.valid){var s=nameStatusForReason(d);setStatus(s.msg,s.cls);setErr(true);nameAvailable=false}else if(d.exists){setStatus("已被占用（本人创建请用编辑链接）","warn");setErr(false);nameAvailable=false}else{setStatus("✓ 可用","ok");setErr(false);nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +
 'nInp.addEventListener("input",function(){clearTimeout(checkTimer);checkTimer=setTimeout(checkName,500)});\n' +

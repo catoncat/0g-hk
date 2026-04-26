@@ -100,8 +100,11 @@ export function editorPage(opts) {
 '.s-desc{color:var(--muted);font-size:.8rem;line-height:1.5;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n' +
 '.s-chev{color:var(--faint);font-size:.9rem;transition:transform .15s}\n' +
 '.s-card[open] .s-chev{transform:rotate(90deg)}\n' +
-'.s-card pre{font-family:var(--mono);font-size:.72rem;background:rgba(128,128,128,.08);padding:.65rem .75rem;border-radius:7px;color:var(--text);overflow-x:auto;white-space:pre;line-height:1.55;margin:.1rem .9rem .9rem;-webkit-overflow-scrolling:touch}\n' +
+'.s-body{padding:0 .9rem .9rem;display:grid;gap:.65rem}\n' +
+'.s-card pre{font-family:var(--mono);font-size:.78rem;background:rgba(128,128,128,.08);padding:.7rem .75rem;border-radius:7px;color:var(--text);overflow-x:auto;white-space:pre-wrap;line-height:1.55;margin:0;-webkit-overflow-scrolling:touch}\n' +
 '.s-card pre::-webkit-scrollbar{height:0}\n' +
+'.s-action{justify-self:start;min-height:32px;padding:0 .75rem;border:1px solid var(--border-strong);border-radius:7px;background:transparent;color:var(--text);font:inherit;font-size:.8rem;cursor:pointer}\n' +
+'@media(hover:hover){.s-action:hover{background:var(--surface-2)}}\n' +
 '@media(max-width:560px){.md-bar{align-items:flex-start;flex-direction:column}.s-head{grid-template-columns:auto minmax(0,1fr) auto}.s-desc{display:none}}\n' +
 '</style></head><body>\n' +
 '<div class="wrap">\n' +
@@ -127,9 +130,9 @@ export function editorPage(opts) {
 '</form>\n' +
 '</div>\n' +
 '<section class="scn" aria-label="用法">\n' +
-'<details class="s-card" open><summary class="s-head">' + ICON_CLIPBOARD + '<span class="s-title">贴一段文字</span><span class="s-desc">剪贴板变链接</span><span class="s-chev">›</span></summary><pre>pbpaste | curl --data-urlencode c@- 0g.hk</pre></details>\n' +
-'<details class="s-card"><summary class="s-head">' + ICON_LINK + '<span class="s-title">起一个名字</span><span class="s-desc">talk.0g.hk</span><span class="s-chev">›</span></summary><pre>curl -d c=https://chen.rs "0g.hk/?n=talk"</pre></details>\n' +
-'<details class="s-card"><summary class="s-head">' + ICON_SPARKLES + '<span class="s-title">给 AI 读</span><span class="s-desc">纯文本 API</span><span class="s-chev">›</span></summary><pre>curl 0g.hk/llms.txt</pre></details>\n' +
+'<details class="s-card" open><summary class="s-head">' + ICON_CLIPBOARD + '<span class="s-title">写笔记</span><span class="s-desc">Markdown / 清单 / 代码</span><span class="s-chev">›</span></summary><div class="s-body"><pre>## 今天要做\n- 约时间\n- 发链接\n- 留个备注</pre><button type="button" class="s-action" data-sample="note">填入编辑器</button></div></details>\n' +
+'<details class="s-card"><summary class="s-head">' + ICON_LINK + '<span class="s-title">缩短链接</span><span class="s-desc">粘贴 URL</span><span class="s-chev">›</span></summary><div class="s-body"><pre>https://chen.rs</pre><button type="button" class="s-action" data-sample="link">填入编辑器</button></div></details>\n' +
+'<details class="s-card"><summary class="s-head">' + ICON_SPARKLES + '<span class="s-title">保存 Prompt</span><span class="s-desc">给 AI 的上下文</span><span class="s-chev">›</span></summary><div class="s-body"><pre>把下面内容整理成三点摘要：</pre><button type="button" class="s-action" data-sample="prompt">填入编辑器</button></div></details>\n' +
 '</section>\n' +
  footerHtml() + '\n' +
 '</div>\n' +
@@ -151,6 +154,8 @@ export function editorPage(opts) {
 'document.querySelectorAll("[data-md]").forEach(function(b){b.addEventListener("click",function(){mdAction(b.getAttribute("data-md"))})});\n' +
 'writeMode.addEventListener("click",function(){setMdMode(false)});previewMode.addEventListener("click",function(){setMdMode(true)});\n' +
 'document.querySelectorAll(".s-card").forEach(function(d){d.addEventListener("toggle",function(){if(!d.open)return;document.querySelectorAll(".s-card").forEach(function(o){if(o!==d)o.open=false})})});\n' +
+'var samples={note:"## 今天要做\\n- 约时间\\n- 发链接\\n- 留个备注",link:"https://chen.rs",prompt:"把下面内容整理成三点摘要：\\n\\n"};\n' +
+'document.querySelectorAll("[data-sample]").forEach(function(b){b.addEventListener("click",function(){var v=samples[b.getAttribute("data-sample")]||"";ta.value=v;setMdMode(false);updateCta();renderPreview();ta.focus()})});\n' +
 // Rotating placeholder hints that name is customizable.
 'var demos=["talk","q3-plan","read-me","demo","party","notes"],di=0;\n' +
 'function cyclePh(){if(document.activeElement===nInp||nInp.value)return;nInp.placeholder=demos[di=(di+1)%demos.length]}\n' +

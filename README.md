@@ -63,7 +63,7 @@ curl -sS -H 'Accept: application/json' -H 'Content-Type: application/json' \
 - **Edit token**：创建时一次性返回 + 仅哈希入库。刻意不提供「找回」，鼓励把短链本身当做可丢弃资源。
 - **跳转白名单**：主流站（GitHub / X / YouTube / Notion / …）直接 302，其余先过跳转中间页以降低 phishing 滥用成本。
 - **Rate limit**：创建/编辑 10/min/IP。
-- **首页缓存**：裸首页 `cache-control: public, max-age=300, stale-while-revalidate=86400`；带预填 / 错误态的则 `no-store`。
+- **缓存**：HTML 页面 `no-store`；`/raw` 短缓存 60 秒；`/llms.txt` 缓存 5 分钟。
 
 ## 仓库结构
 

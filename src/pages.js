@@ -34,7 +34,7 @@ export function editorPage(opts) {
 'body{padding:clamp(16px,4vh,40px) 16px 14px;min-height:100svh;display:flex}\n' +
 '.home-wrap{width:100%;display:flex;flex:1;flex-direction:column;min-height:0}\n' +
 '.home-logo{flex:0 0 auto;margin:0 0 1.15rem}\n' +
-'.home-brand{font-family:var(--mono);font-size:clamp(2.35rem,8vw,3.35rem);font-weight:800;letter-spacing:-.04em;line-height:1;display:flex;align-items:baseline;flex-wrap:nowrap;min-width:0;margin:0}\n' +
+'.home-brand{font-family:var(--mono);font-size:clamp(2.35rem,8vw,3.35rem);font-weight:800;letter-spacing:-.04em;line-height:1;display:flex;align-items:baseline;flex-wrap:nowrap;min-width:0;margin:0;overflow:hidden}\n' +
 '.home-brand .dot{color:#10b981}\n' +
 '.home-brand .tw{color:var(--text);display:inline-block;min-width:.1em}\n' +
 '.home-brand .cursor{display:inline-block;width:.08em;height:.78em;background:#10b981;vertical-align:baseline;margin-left:.05em;animation:tw-blink 1s step-end infinite;border-radius:1px;align-self:center}\n' +
@@ -44,9 +44,11 @@ export function editorPage(opts) {
 '.md-shell{border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden;transition:border-color .12s,box-shadow .12s;display:flex;flex:1 1 auto;flex-direction:column;min-height:16rem}\n' +
 '.md-shell:focus-within{border-color:var(--text);box-shadow:0 0 0 3px rgba(17,17,17,.06)}\n' +
 '@media(prefers-color-scheme:dark){.md-shell:focus-within{box-shadow:0 0 0 3px rgba(237,237,237,.08)}}\n' +
-'.md-bar{display:flex;justify-content:space-between;gap:.5rem;padding:.36rem;background:var(--surface-2);border-bottom:1px solid var(--border)}\n' +
-'.md-tools,.md-modes{display:flex;align-items:center;gap:.25rem;flex-wrap:wrap}\n' +
-'.md-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:30px;padding:0 .5rem;border:0;border-radius:6px;background:transparent;color:var(--muted);font:600 .78rem/1 var(--mono);cursor:pointer;-webkit-tap-highlight-color:transparent}\n' +
+'.md-bar{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.36rem;background:var(--surface-2);border-bottom:1px solid var(--border)}\n' +
+'.md-tools,.md-modes{display:flex;align-items:center;gap:.25rem;flex-wrap:nowrap}\n' +
+'.md-tools{flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}.md-tools::-webkit-scrollbar{display:none}.md-modes{flex:0 0 auto;margin-left:auto}\n' +
+'.md-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;min-width:30px;height:30px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted);font:600 .78rem/1 var(--mono);cursor:pointer;-webkit-tap-highlight-color:transparent}\n' +
+'.md-btn svg{display:block;width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}\n' +
 '.md-btn.active{background:var(--surface);color:var(--text);box-shadow:inset 0 0 0 1px var(--border)}\n' +
 '@media(hover:hover){.md-btn:hover{background:var(--surface);color:var(--text)}}\n' +
 '.md-shell textarea{display:block;width:100%;flex:1;min-height:0;border:0;border-radius:0;background:transparent;padding:.85rem .95rem;color:inherit;font:400 .92rem/1.65 var(--mono);resize:none;outline:0;overflow:auto}\n' +
@@ -55,7 +57,9 @@ export function editorPage(opts) {
 '.md-shell.previewing .md-preview{display:block}\n' +
 '.md-preview>:first-child{margin-top:0}.md-preview>:last-child{margin-bottom:0}.md-preview p{margin:.55em 0}.md-preview h1,.md-preview h2,.md-preview h3{line-height:1.25;margin:.8em 0 .35em}.md-preview h1{font-size:1.35rem}.md-preview h2{font-size:1.15rem}.md-preview h3{font-size:1rem}.md-preview ul,.md-preview ol{padding-left:1.2rem;margin:.55em 0}.md-preview blockquote{margin:.7em 0;padding-left:.75rem;border-left:3px solid var(--border-strong);color:var(--muted)}.md-preview code{font-family:var(--mono);font-size:.9em;background:rgba(128,128,128,.14);border:1px solid var(--border);border-radius:4px;padding:.04rem .24rem}.md-preview pre{margin:.7em 0;padding:.75rem .85rem;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;overflow:auto}.md-preview hr{border:0;border-top:1px solid var(--border);margin:1rem 0}.md-preview .empty{color:var(--faint)}\n' +
 // Name field (full-width, with inline .0g.hk suffix).
-'.name-wrap{display:flex;align-items:stretch;border:1px solid var(--border);border-radius:8px;background:var(--surface);overflow:hidden;min-width:0;min-height:44px;margin-top:1rem}\n' +
+'.publish-row{display:flex;align-items:stretch;min-width:0;margin-top:1rem}\n' +
+'.name-wrap{display:flex;align-items:stretch;border:1px solid var(--border);border-radius:8px;background:var(--surface);overflow:hidden;min-width:0;min-height:44px;margin-top:0}\n' +
+'.publish-row .name-wrap{flex:1;border-right:0;border-radius:8px 0 0 8px}\n' +
 '.name-wrap:focus-within{border-color:var(--text);box-shadow:0 0 0 3px rgba(17,17,17,.06)}\n' +
 '@media(prefers-color-scheme:dark){.name-wrap:focus-within{box-shadow:0 0 0 3px rgba(237,237,237,.08)}}\n' +
 '.name-wrap input{flex:1;min-width:0;border:0;background:transparent;padding:0 .85rem;font:inherit;font-size:1rem;color:inherit;outline:0;min-height:unset}\n' +
@@ -65,9 +69,8 @@ export function editorPage(opts) {
 '.name-status{display:block;min-height:1.1em;margin-top:.4rem;font-size:.76rem;color:var(--faint);line-height:1.4}\n' +
 '.name-status.ok{color:var(--ok)}.name-status.warn{color:var(--warn)}.name-status.err{color:var(--err)}.name-status.pending{color:var(--faint)}\n' +
 '.alert-warn{margin:0 0 1rem;padding:.8rem .95rem;border-radius:10px;background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn-fg);font-size:.82rem;line-height:1.55}\n' +
-// Action row: TTL chips (left) + submit button (right). Wraps on narrow screens.
-'.action{display:flex;gap:.6rem .85rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:1rem}\n' +
-'.ttl-row{display:flex;gap:.4rem;align-items:center;font-size:.78rem;color:var(--muted);flex-wrap:wrap}\n' +
+// TTL chips.
+'.ttl-row{display:flex;gap:.4rem;align-items:center;font-size:.78rem;color:var(--muted);flex-wrap:wrap;margin-top:.7rem}\n' +
 '.chip{position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent}\n' +
 '.chip input{position:absolute;opacity:0;pointer-events:none}\n' +
 '.chip span{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 .85rem;border:1px solid var(--border);border-radius:999px;font-size:.82rem;color:var(--muted);transition:all .12s;user-select:none;background:transparent}\n' +
@@ -75,27 +78,26 @@ export function editorPage(opts) {
 '.chip input:checked+span{background:var(--text);color:var(--bg);border-color:var(--text)}\n' +
 '.chip input:focus-visible+span{outline:2px solid var(--text);outline-offset:2px}\n' +
 // Primary submit button.
-'.action button{min-height:44px;padding:0 1.25rem;font-size:.95rem;white-space:nowrap;flex-shrink:0}\n' +
-'.submit-btn{border:1px solid var(--text);border-radius:8px;background:var(--text);color:var(--bg);font-family:inherit;cursor:pointer;transition:filter .12s,transform .12s}\n' +
-'@media(hover:hover){.submit-btn:hover{filter:brightness(.92);transform:translateY(-1px)}}\n' +
+'.submit-btn{min-height:44px;min-width:5.2rem;padding:0 1.15rem;border:1px solid var(--text);border-radius:8px;background:var(--text);color:var(--bg);font-family:inherit;font-size:.95rem;font-weight:600;line-height:1;white-space:nowrap;flex-shrink:0;cursor:pointer;transition:filter .12s,transform .12s}\n' +
+'.publish-row .submit-btn{border-radius:0 8px 8px 0}\n' +
+'@media(hover:hover){.submit-btn:hover{filter:brightness(.92)}}\n' +
 '.submit-btn:active{filter:brightness(.86);transform:translateY(0)}.submit-btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}\n' +
-'@media(max-width:560px){body{padding:12px 10px}.home-logo{margin-bottom:.9rem}.home-brand{font-size:clamp(2.1rem,13vw,2.95rem)}.md-bar{align-items:flex-start;flex-direction:column}.md-shell{min-height:14rem}}\n' +
+'@media(max-width:560px){body{padding:12px 10px}.home-logo{margin-bottom:.9rem}.home-brand{font-size:clamp(2rem,11vw,2.7rem)}.md-shell{min-height:14rem}.submit-btn{min-width:4.7rem;padding:0 .95rem}.name-wrap input{padding:0 .7rem}.name-wrap .suffix{padding-right:.7rem}}\n' +
 '</style></head><body>\n' +
 '<div class="wrap home-wrap">\n' +
-'<header class="home-logo"><h1 class="home-brand"><span id="tw" class="tw">demo</span><span class="cursor"></span><span class="dot">.</span>0g<span class="dot">.</span>hk</h1></header>\n' +
+'<header class="home-logo"><h1 class="home-brand"><span id="tw" class="tw">go</span><span class="cursor"></span><span class="dot">.</span>0g<span class="dot">.</span>hk</h1></header>\n' +
 (alertTop ? '<div class="alert-warn">' + alertTop + '</div>\n' : '') +
 '<form onsubmit="return go(event)">\n' +
 '<div class="md-shell" id="mdShell">\n' +
 '<div class="md-bar"><div class="md-tools" aria-label="Markdown 工具">\n' +
-'<button type="button" class="md-btn" data-md="h" aria-label="标题">H</button><button type="button" class="md-btn" data-md="b" aria-label="加粗">B</button><button type="button" class="md-btn" data-md="i" aria-label="斜体"><em>I</em></button><button type="button" class="md-btn" data-md="link" aria-label="链接">[]</button><button type="button" class="md-btn" data-md="list" aria-label="列表">•</button><button type="button" class="md-btn" data-md="code" aria-label="代码">{}</button>\n' +
-'</div><div class="md-modes"><button type="button" class="md-btn" id="previewToggle">预览</button></div></div>\n' +
+'<button type="button" class="md-btn" data-md="h" aria-label="标题"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 5v14M6 12h12"/></svg></button><button type="button" class="md-btn" data-md="b" aria-label="加粗"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a4 4 0 0 1 0 8H7zM7 13h7a3.5 3.5 0 0 1 0 7H7zM7 5v15"/></svg></button><button type="button" class="md-btn" data-md="i" aria-label="斜体"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5h8M6 19h8M14 5l-4 14"/></svg></button><button type="button" class="md-btn" data-md="link" aria-label="链接"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1 0l1.4-1.4a5 5 0 0 0-7.1-7.1l-.8.8M14 11a5 5 0 0 0-7.1 0l-1.4 1.4a5 5 0 0 0 7.1 7.1l.8-.8"/></svg></button><button type="button" class="md-btn" data-md="list" aria-label="列表"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button><button type="button" class="md-btn" data-md="code" aria-label="代码"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg></button>\n' +
+'</div><div class="md-modes"><button type="button" class="md-btn" id="previewToggle" aria-label="预览"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>\n' +
 '<textarea id="c" required autofocus rows="5" placeholder="写 Markdown，或粘贴链接" aria-label="内容">' + esc(prefillContent) + '</textarea>\n' +
 '<div class="md-preview" id="mdPreview" aria-live="polite"></div>\n' +
 '</div>\n' +
-'<div class="name-wrap' + (errorName ? ' err' : '') + '" id="nw"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" inputmode="url" pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?" placeholder="talk" aria-label="自定义子域名"><span class="suffix">.' + BASE_HOST + '</span></div>' +
+'<div class="publish-row"><div class="name-wrap' + (errorName ? ' err' : '') + '" id="nw"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" inputmode="url" pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?" placeholder="go" aria-label="自定义子域名"><span class="suffix">.' + BASE_HOST + '</span></div><button type="submit" id="submitBtn" class="submit-btn">发布</button></div>' +
 '<span id="ns" class="name-status' + (errorName ? ' err' : '') + '">' + esc(errorName) + '</span>\n' +
-'<div class="action"><div class="ttl-row" aria-label="保留时间">' + ttlChips + '</div>' +
-'<button type="submit" id="submitBtn" class="submit-btn">生成 →</button></div>\n' +
+'<div class="ttl-row" aria-label="保留时间">' + ttlChips + '</div>\n' +
 '</form>\n' +
  footerHtml() + '\n' +
 '</div>\n' +
@@ -110,21 +112,22 @@ export function editorPage(opts) {
 'function inlineMd(s){return escMd(s).replace(/`([^`]+)`/g,"<code>$1</code>").replace(/\\*\\*([^*]+)\\*\\*/g,"<strong>$1</strong>").replace(/(^|[^*])\\*([^*]+)\\*/g,"$1<em>$2</em>").replace(/~~([^~]+)~~/g,"<del>$1</del>")}\n' +
 'function renderLiteMd(src){var lines=String(src||"").replace(/\\r\\n?/g,"\\n").split("\\n"),out=[],list="";function endList(){if(list){out.push("</"+list+">");list=""}}lines.forEach(function(line){var t=line.trim();if(!t){endList();return}var h=t.match(/^(#{1,3})\\s+(.+)$/);if(h){endList();out.push("<h"+h[1].length+">"+inlineMd(h[2])+"</h"+h[1].length+">");return}var li=t.match(/^[-*+]\\s+(.+)$/);if(li){if(list!=="ul"){endList();out.push("<ul>");list="ul"}out.push("<li>"+inlineMd(li[1])+"</li>");return}var q=t.match(/^>\\s?(.*)$/);if(q){endList();out.push("<blockquote>"+inlineMd(q[1])+"</blockquote>");return}if(/^[-*_]{3,}$/.test(t)){endList();out.push("<hr>");return}endList();out.push("<p>"+inlineMd(t)+"</p>")});endList();return out.join("")||"<p class=\\"empty\\">空白</p>"}\n' +
 'function renderPreview(){mdPreview.innerHTML=renderLiteMd(ta.value)}\n' +
-'function setMdMode(preview){mdShell.classList.toggle("previewing",preview);previewToggle.classList.toggle("active",preview);previewToggle.textContent=preview?"编辑":"预览";if(preview)renderPreview();else ta.focus()}\n' +
+'var previewIcon=`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>`,editIcon=`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;\n' +
+'function setPreviewButton(preview){previewToggle.innerHTML=preview?editIcon:previewIcon;previewToggle.setAttribute("aria-label",preview?"编辑":"预览")}\n' +
+'function setMdMode(preview){mdShell.classList.toggle("previewing",preview);previewToggle.classList.toggle("active",preview);setPreviewButton(preview);if(preview)renderPreview();else ta.focus()}\n' +
 'function surround(a,b,f){var s=ta.selectionStart,e=ta.selectionEnd,v=ta.value,x=v.slice(s,e)||f;ta.setRangeText(a+x+b,s,e,"select");ta.selectionStart=s+a.length;ta.selectionEnd=s+a.length+x.length}\n' +
 'function prefixLine(p,f){var s=ta.selectionStart,e=ta.selectionEnd,v=ta.value;if(s===e){var ls=v.lastIndexOf("\\n",s-1)+1;ta.setRangeText(p+f,ls,s,"end");ta.selectionStart=ls+p.length;ta.selectionEnd=ls+p.length+f.length;return}var x=v.slice(s,e).split("\\n").map(function(l){return p+l}).join("\\n");ta.setRangeText(x,s,e,"select")}\n' +
-'function mdAction(k){setMdMode(false);if(k==="h")prefixLine("# ","标题");else if(k==="b")surround("**","**","加粗");else if(k==="i")surround("*","*","斜体");else if(k==="link")surround("[","](https://)","链接");else if(k==="list")prefixLine("- ","列表项");else if(k==="code")surround("`","`","code");ta.focus();updateCta();renderPreview()}\n' +
+'function mdAction(k){setMdMode(false);if(k==="h")prefixLine("# ","标题");else if(k==="b")surround("**","**","加粗");else if(k==="i")surround("*","*","斜体");else if(k==="link")surround("[","](https://)","链接");else if(k==="list")prefixLine("- ","列表项");else if(k==="code")surround("`","`","code");ta.focus();renderPreview()}\n' +
 'document.querySelectorAll("[data-md]").forEach(function(b){b.addEventListener("click",function(){mdAction(b.getAttribute("data-md"))})});\n' +
 'previewToggle.addEventListener("click",function(){setMdMode(!mdShell.classList.contains("previewing"))});\n' +
 // Rotating placeholder hints that name is customizable.
-'var demos=["talk","q3-plan","read-me","demo","party","notes"],di=0;\n' +
+'var demos=["go","hi","md","up","to","ok"],di=0;\n' +
 'function cyclePh(){if(document.activeElement===nInp||nInp.value)return;nInp.placeholder=demos[di=(di+1)%demos.length]}\n' +
 'setInterval(cyclePh,2200);cyclePh();\n' +
 'var twEl=document.getElementById("tw"),twI=0,twC=demos[0].length,twDel=true;\n' +
 'function tw(){var w=demos[twI];if(twDel){twEl.textContent=w.substring(0,--twC);if(twC===0){twDel=false;twI=(twI+1)%demos.length;setTimeout(tw,500);return}}else{twEl.textContent=w.substring(0,++twC);if(twC===w.length){twDel=true;setTimeout(tw,1800);return}}setTimeout(tw,twDel?55:105)}\n' +
 'setTimeout(tw,1500);\n' +
-'function updateCta(){var v=ta.value.trim();if(!v){submitBtn.textContent="生成 →";return}if(/^https?:\\/\\//i.test(v)){submitBtn.textContent="生成短链 →"}else{submitBtn.textContent="生成笔记 →"}}\n' +
-'ta.addEventListener("input",function(){updateCta();if(mdShell.classList.contains("previewing"))renderPreview()});updateCta();\n' +
+'ta.addEventListener("input",function(){if(mdShell.classList.contains("previewing"))renderPreview()});\n' +
 'function checkName(){var v=normalizeNameInput(nInp.value);nInp.value=v;if(!v){setStatus("","");setErr(false);nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(v)){setStatus("格式：小写字母/数字/-","err");setErr(true);nameAvailable=false;return}setStatus("检查中…","pending");fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(normalizeNameInput(nInp.value)!==v)return;if(!d.valid){var s=nameStatusForReason(d);setStatus(s.msg,s.cls);setErr(true);nameAvailable=false}else if(d.exists){setStatus("已被占用（本人创建请用编辑链接）","warn");setErr(false);nameAvailable=false}else{setStatus("✓ 可用","ok");setErr(false);nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +
 'nInp.addEventListener("input",function(){clearTimeout(checkTimer);checkTimer=setTimeout(checkName,500)});\n' +
 'if(nInp.value)checkName();\n' +

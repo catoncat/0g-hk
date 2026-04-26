@@ -24,8 +24,8 @@
 
 - **Opt-in JSON**：请求加 `Accept: application/json` 或 query 参数 `?format=json` → 响应即 JSON。否则走 HTML。
 - **OPTIONS**：任何路径对 `OPTIONS` 返回 CORS preflight。
-- **Rate limit**：10 req/min/IP（创建 + 编辑共享）。超限返 `429` + `Retry-After` 语义（`windowSeconds: 60`）。
-- **Metadata headers**（创建、读取、302、/raw 都会带）：
+- **Rate limit**：Worker 内置创建/编辑 10 req/min/IP。超限返 `429`，JSON details 含 `limit` 与 `windowSeconds: 60`；`/exists` / 举报等高频路径可另由 Cloudflare 边缘限流。
+- **Metadata headers**（创建、JSON 读取、302、/raw 都会带；普通 HTML 笔记页不保证带）：
   - `X-Name`
   - `X-Short-Url` · `X-Raw-Url`
   - `X-Kind`：`url` 或 `text`
@@ -98,8 +98,8 @@ curl -sS -X POST https://0g.hk/ \
 
 | 参数      | body/query     | 说明                                                                 |
 | --------- | -------------- | -------------------------------------------------------------------- |
-| `content` / `c` | body 优先，query 回退 | 笔记正文（≤8KB）或以 `http(s)://` 开头的 URL（≤2KB） |
-| `name` / `n`    | 可选           | 小写字母/数字/-（空格/下划线自动转 -）。不给则随机 6 字符              |
+| `content` / `c` | body 优先，query 回退 | 笔记正文（≤8KB）或 URL（≤2KB，可省略 `https://`） |
+| `name` / `n`    | 可选           | 首尾必须是小写字母/数字，中间可含 `-`；空格/下划线自动转 `-`。不给则随机 6 字符；自定义名建议保持 DNS label 长度（≤63 字符） |
 | `ttl`           | 可选           | `1h` / `1d` / `7d`（默认 `7d`，由产品策略限定最长 7 天，到期前可用 `renew` 续期）               |
 
 text/plain body 时整个 body 即 `content`，无名/TTL 参数（用 query string 补）。
@@ -119,7 +119,7 @@ curl -sS 'https://foo.0g.hk/?format=json'
 curl -sSI https://foo.0g.hk/raw
 ```
 
-JSON 响应包含：`name, kind, shortUrl, rawUrl, content, target, ttl, createdAt, expiresAt, contentLength`（**不含 editToken**）。
+JSON 响应包含：`apiVersion, name, kind, shortUrl, rawUrl, content, target, ttl, createdAt, expiresAt, contentLength`（**不含 editToken**）。
 
 ## 编辑 / 续期
 
@@ -166,7 +166,7 @@ curl -sS 'https://0g.hk/exists?n=foo'
 所有错误响应（JSON 模式下）：
 
 ```json
-{"ok": false, "error": {"code": "name_taken", "message": "...", "name": "foo"}}
+{"ok": false, "error": {"code": "name_taken", "message": "...", "details": {"name": "foo"}}}
 ```
 
 | HTTP | `code`             | 含义                               |
@@ -178,11 +178,16 @@ curl -sS 'https://0g.hk/exists?n=foo'
 | 400  | `brand_blocked`    | 名字包含品牌/钓鱼高风险词         |
 | 400  | `invalid_ttl`      | TTL 值无效（返回 `allowed` 数组）  |
 | 400  | `malformed_url`    | URL 解析失败                       |
+| 400  | `bad_scheme`       | 非 http/https 或危险 URL scheme    |
+| 400  | `shortener_blocked` | 禁止把其他短链服务作为跳转目标     |
+| 400  | `unsafe_target`    | Safe Browsing 判定目标 URL 不安全   |
+| 400  | `content_blocked`  | 内容安全模型判定为滥用内容         |
 | 400  | `bad_body`         | POST body 无法解析                 |
 | 403  | `not_editable`     | 笔记不存在或元数据缺失             |
 | 403  | `invalid_token`    | 编辑 token 错误                    |
 | 404  | `not_found`        | 子域笔记不存在                     |
 | 409  | `name_taken`       | 名字已被占用                       |
+| 410  | `disabled`         | 内容因举报或管理操作被禁用         |
 | 413  | `url_too_long`     | URL 超 2KB                         |
 | 413  | `text_too_long`    | 文本超 8KB                         |
 | 429  | `rate_limited`     | 超频（10/min/IP）                  |

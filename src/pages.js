@@ -5,6 +5,10 @@ import { esc, shortUrlFor, isUrl, parseUrlSafe, isAllowedTarget } from "./util.j
 import { renderMarkdown } from "./markdown.js";
 import { COMMON_CSS, html, footerHtml, headerHtml, promoCardHtml } from "./responses.js";
 
+const ICON_CLIPBOARD = '<svg class="s-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6"/><path d="M9 4a3 3 0 0 1 6 0"/><path d="M8 6h8"/><path d="M7 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1"/><path d="M8 12h8"/><path d="M8 16h5"/></svg>';
+const ICON_LINK = '<svg class="s-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1"/></svg>';
+const ICON_SPARKLES = '<svg class="s-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.4 4.2L18 9l-4.6 1.8L12 15l-1.4-4.2L6 9l4.6-1.8L12 3Z"/><path d="M19 14l.7 2.1L22 17l-2.3.9L19 20l-.7-2.1L16 17l2.3-.9L19 14Z"/><path d="M5 14l.7 2.1L8 17l-2.3.9L5 20l-.7-2.1L2 17l2.3-.9L5 14Z"/></svg>';
+
 export function editorPage(opts) {
   opts = opts || {};
   const prefillContent = opts.prefillContent || "";
@@ -80,8 +84,8 @@ export function editorPage(opts) {
 '.scn{display:grid;gap:.7rem;grid-template-columns:minmax(0,1fr);margin-top:1.25rem}\n' +
 '@media(min-width:760px){.scn{grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem}}\n' +
 '.s-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;line-height:1.5;display:flex;flex-direction:column;gap:.4rem;min-width:0}\n' +
-'.s-head{display:flex;gap:.45rem;align-items:baseline}\n' +
-'.s-emoji{font-size:1rem;line-height:1;flex-shrink:0}\n' +
+'.s-head{display:flex;gap:.5rem;align-items:center}\n' +
+'.s-icon{width:1rem;height:1rem;flex:0 0 1rem;color:var(--muted);stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}\n' +
 '.s-title{font-weight:600;color:var(--text);font-size:.9rem}\n' +
 '.s-desc{color:var(--muted);font-size:.8rem;line-height:1.5}\n' +
 '.s-card pre{font-family:var(--mono);font-size:.72rem;background:rgba(128,128,128,.08);padding:.55rem .65rem;border-radius:6px;color:var(--text);overflow-x:auto;white-space:pre;line-height:1.55;margin-top:auto;-webkit-overflow-scrolling:touch}\n' +
@@ -104,9 +108,9 @@ export function editorPage(opts) {
 '</form>\n' +
 '</div>\n' +
 '<section class="scn" aria-label="用法">\n' +
-'<div class="s-card"><div class="s-head"><span class="s-emoji">📋</span><span class="s-title">分享临时文本</span></div><div class="s-desc">剪贴板 → 一个可分享的 URL</div><pre>pbpaste | curl -d @- 0g.hk</pre></div>\n' +
-'<div class="s-card"><div class="s-head"><span class="s-emoji">🔗</span><span class="s-title">好记的短链</span></div><div class="s-desc">子域名即文案，比哈希好记 10 倍</div><pre>curl -d https://… 0g.hk/?n=talk</pre></div>\n' +
-'<div class="s-card"><div class="s-head"><span class="s-emoji">🤖</span><span class="s-title">让 AI 帮你建</span></div><div class="s-desc">curl 主页直接返回说明书</div><pre>curl 0g.hk  # AI 读完就会用</pre></div>\n' +
+'<div class="s-card"><div class="s-head">' + ICON_CLIPBOARD + '<span class="s-title">贴一段文字</span></div><div class="s-desc">剪贴板变链接</div><pre>pbpaste | curl --data-urlencode c@- 0g.hk</pre></div>\n' +
+'<div class="s-card"><div class="s-head">' + ICON_LINK + '<span class="s-title">起一个名字</span></div><div class="s-desc">talk.0g.hk</div><pre>curl -d c=https://chen.rs "0g.hk/?n=talk"</pre></div>\n' +
+'<div class="s-card"><div class="s-head">' + ICON_SPARKLES + '<span class="s-title">给 AI 读</span></div><div class="s-desc">纯文本 API</div><pre>curl 0g.hk/llms.txt</pre></div>\n' +
 '</section>\n' +
  footerHtml() + '\n' +
 '</div>\n' +

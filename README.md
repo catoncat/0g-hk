@@ -6,21 +6,21 @@
 <子域名>.0g.hk   →   一条链接、一段文字、一份 AI prompt
 ```
 
-无账号、无数据库、无追踪脚本。Cloudflare Worker + KV，单文件 ~970 行。
+无账号、无数据库、无追踪脚本。Cloudflare Worker + KV。
 
 ## 三十秒上手
 
 ```bash
 # 文本进去、短链出来
-curl -sS --data-binary 'hello world' 0g.hk/
+curl -sS --data-urlencode c='hello world' https://0g.hk/
 
 # 机器可读
-curl -sS -H 'Accept: application/json' --data-binary 'hello world' 0g.hk/ | jq .
+curl -sS -H 'Accept: application/json' --data-urlencode c='hello world' https://0g.hk/ | jq .
 
 # 自定名 + URL 短链 + 7 天
 curl -sS -H 'Accept: application/json' -H 'Content-Type: application/json' \
   -d '{"content":"https://github.com/catoncat/0g-hk","name":"repo","ttl":"7d"}' \
-  0g.hk/
+  https://0g.hk/
 ```
 
 浏览器直接打开 <https://0g.hk> 也有编辑器。AI / 脚本用 `curl 0g.hk` 拿到的是**纯文本手册**而不是 HTML（content negotiation）。
@@ -36,8 +36,8 @@ curl -sS -H 'Accept: application/json' -H 'Content-Type: application/json' \
 | TTL | `1h` / `1d` / `7d`，默认 `7d`，**最长 7 天** |
 | 续期 | `POST <sub>.0g.hk/?edit=<token>&renew=1`，重置到期窗口 |
 | 编辑 token | 创建时返回一次，KV 只存 hash。丢了就改不了 |
-| Rate limit | 10 req/min/IP，纯 KV 计数 |
-| 保留名 | `www api new admin edit raw n app abuse report exists` |
+| Rate limit | 创建/编辑 10 req/min/IP |
+| 保留名 | `www api new admin edit raw n app abuse report exists`，以及 `mail email dns mx ns cdn static assets help docs status` |
 
 ## 路由（概览）
 
@@ -62,23 +62,29 @@ curl -sS -H 'Accept: application/json' -H 'Content-Type: application/json' \
 - **KV key 布局**：`n:<name>` 存内容，`m:<name>` 存元数据（token hash + TTL key + createdAt）。TTL 由 KV 原生 `expirationTtl` 管理，到期自动消失。
 - **Edit token**：创建时一次性返回 + 仅哈希入库。刻意不提供「找回」，鼓励把短链本身当做可丢弃资源。
 - **跳转白名单**：主流站（GitHub / X / YouTube / Notion / …）直接 302，其余先过跳转中间页以降低 phishing 滥用成本。
-- **Rate limit**：10/min/IP，key 形如 `rl:<ip>:<minute>`，完全 KV-only，无外部依赖。
+- **Rate limit**：创建/编辑 10/min/IP。
 - **首页缓存**：裸首页 `cache-control: public, max-age=300, stale-while-revalidate=86400`；带预填 / 错误态的则 `no-store`。
 
 ## 仓库结构
 
 ```
-src/index.js        Worker 入口 —— 所有逻辑 + HTML UI 全在一起
+src/index.js        Worker 入口与主路由
+src/pages.js        HTML 页面渲染
+src/responses.js    响应工具、通用样式、llms.txt
+src/util.js         名字、URL、限流和安全校验工具
+src/moderation.js   Safe Browsing / Workers AI 内容安全
+src/admin.js        管理后台
 docs/API.md         HTTP API 参考（工程向）
+docs/review/        Cloudflare 配置实施记录与后续计划
 wrangler.toml       Cloudflare Worker 配置
 ```
 
 ## 本地开发 / 部署
 
 ```bash
-npm i -g wrangler        # 或 bun i -g wrangler
-wrangler dev             # 本地
-wrangler deploy          # 推到生产（account_id 已写在 wrangler.toml）
+npm install              # 安装本地 wrangler
+npm run dev              # 本地
+npm run deploy           # 推到生产（account_id 已写在 wrangler.toml）
 ```
 
 域名绑定：`0g.hk` 作为 Custom Domain，`*.0g.hk/*` 作为通配路由；KV namespace 绑在 `NOTES`。

@@ -31,9 +31,17 @@ export function editorPage(opts) {
 '<meta name="description" content="把一段文字或链接变成 xxx.0g.hk。无账号、一次 GET 完成。">' +
 '<title>' + BASE_HOST + ' — 临时笔记 · 短链</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
-'body{padding-top:clamp(20px,6vw,56px)}\n' +
+'body{padding:clamp(16px,4vh,40px) 16px 14px;min-height:100svh;display:flex}\n' +
+'.home-wrap{width:100%;display:flex;flex:1;flex-direction:column;min-height:0}\n' +
+'.home-logo{flex:0 0 auto;margin:0 0 1.15rem}\n' +
+'.home-brand{font-family:var(--mono);font-size:clamp(2.35rem,8vw,3.35rem);font-weight:800;letter-spacing:-.04em;line-height:1;display:flex;align-items:baseline;flex-wrap:nowrap;min-width:0;margin:0}\n' +
+'.home-brand .dot{color:#10b981}\n' +
+'.home-brand .tw{color:var(--text);display:inline-block;min-width:.1em}\n' +
+'.home-brand .cursor{display:inline-block;width:.08em;height:.78em;background:#10b981;vertical-align:baseline;margin-left:.05em;animation:tw-blink 1s step-end infinite;border-radius:1px;align-self:center}\n' +
+'@keyframes tw-blink{50%{opacity:0}}\n' +
+'form{flex:1;display:flex;flex-direction:column;min-height:0}\n' +
 // Lightweight Markdown editor.
-'.md-shell{border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden;transition:border-color .12s,box-shadow .12s}\n' +
+'.md-shell{border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden;transition:border-color .12s,box-shadow .12s;display:flex;flex:1 1 auto;flex-direction:column;min-height:16rem}\n' +
 '.md-shell:focus-within{border-color:var(--text);box-shadow:0 0 0 3px rgba(17,17,17,.06)}\n' +
 '@media(prefers-color-scheme:dark){.md-shell:focus-within{box-shadow:0 0 0 3px rgba(237,237,237,.08)}}\n' +
 '.md-bar{display:flex;justify-content:space-between;gap:.5rem;padding:.36rem;background:var(--surface-2);border-bottom:1px solid var(--border)}\n' +
@@ -41,9 +49,9 @@ export function editorPage(opts) {
 '.md-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;min-height:30px;padding:0 .5rem;border:0;border-radius:6px;background:transparent;color:var(--muted);font:600 .78rem/1 var(--mono);cursor:pointer;-webkit-tap-highlight-color:transparent}\n' +
 '.md-btn.active{background:var(--surface);color:var(--text);box-shadow:inset 0 0 0 1px var(--border)}\n' +
 '@media(hover:hover){.md-btn:hover{background:var(--surface);color:var(--text)}}\n' +
-'.md-shell textarea{display:block;width:100%;min-height:7rem;border:0;border-radius:0;background:transparent;padding:.85rem .95rem;color:inherit;font:400 .92rem/1.65 var(--mono);resize:vertical;outline:0}\n' +
+'.md-shell textarea{display:block;width:100%;flex:1;min-height:0;border:0;border-radius:0;background:transparent;padding:.85rem .95rem;color:inherit;font:400 .92rem/1.65 var(--mono);resize:none;outline:0;overflow:auto}\n' +
 '.md-shell.previewing textarea{display:none}\n' +
-'.md-preview{display:none;min-height:7rem;padding:.85rem .95rem;line-height:1.65;overflow-wrap:anywhere;color:var(--text)}\n' +
+'.md-preview{display:none;flex:1;min-height:0;padding:.85rem .95rem;line-height:1.65;overflow:auto;overflow-wrap:anywhere;color:var(--text)}\n' +
 '.md-shell.previewing .md-preview{display:block}\n' +
 '.md-preview>:first-child{margin-top:0}.md-preview>:last-child{margin-bottom:0}.md-preview p{margin:.55em 0}.md-preview h1,.md-preview h2,.md-preview h3{line-height:1.25;margin:.8em 0 .35em}.md-preview h1{font-size:1.35rem}.md-preview h2{font-size:1.15rem}.md-preview h3{font-size:1rem}.md-preview ul,.md-preview ol{padding-left:1.2rem;margin:.55em 0}.md-preview blockquote{margin:.7em 0;padding-left:.75rem;border-left:3px solid var(--border-strong);color:var(--muted)}.md-preview code{font-family:var(--mono);font-size:.9em;background:rgba(128,128,128,.14);border:1px solid var(--border);border-radius:4px;padding:.04rem .24rem}.md-preview pre{margin:.7em 0;padding:.75rem .85rem;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;overflow:auto}.md-preview hr{border:0;border-top:1px solid var(--border);margin:1rem 0}.md-preview .empty{color:var(--faint)}\n' +
 // Name field (full-width, with inline .0g.hk suffix).
@@ -60,7 +68,6 @@ export function editorPage(opts) {
 // Action row: TTL chips (left) + submit button (right). Wraps on narrow screens.
 '.action{display:flex;gap:.6rem .85rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:1rem}\n' +
 '.ttl-row{display:flex;gap:.4rem;align-items:center;font-size:.78rem;color:var(--muted);flex-wrap:wrap}\n' +
-'.ttl-row .lbl{color:var(--faint);margin-right:.25rem}\n' +
 '.chip{position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent}\n' +
 '.chip input{position:absolute;opacity:0;pointer-events:none}\n' +
 '.chip span{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 .85rem;border:1px solid var(--border);border-radius:999px;font-size:.82rem;color:var(--muted);transition:all .12s;user-select:none;background:transparent}\n' +
@@ -69,10 +76,13 @@ export function editorPage(opts) {
 '.chip input:focus-visible+span{outline:2px solid var(--text);outline-offset:2px}\n' +
 // Primary submit button.
 '.action button{min-height:44px;padding:0 1.25rem;font-size:.95rem;white-space:nowrap;flex-shrink:0}\n' +
-'@media(max-width:560px){.md-bar{align-items:flex-start;flex-direction:column}}\n' +
+'.submit-btn{border:1px solid var(--text);border-radius:8px;background:var(--text);color:var(--bg);font-family:inherit;cursor:pointer;transition:filter .12s,transform .12s}\n' +
+'@media(hover:hover){.submit-btn:hover{filter:brightness(.92);transform:translateY(-1px)}}\n' +
+'.submit-btn:active{filter:brightness(.86);transform:translateY(0)}.submit-btn:focus-visible{outline:2px solid var(--text);outline-offset:2px}\n' +
+'@media(max-width:560px){body{padding:12px 10px}.home-logo{margin-bottom:.9rem}.home-brand{font-size:clamp(2.1rem,13vw,2.95rem)}.md-bar{align-items:flex-start;flex-direction:column}.md-shell{min-height:14rem}}\n' +
 '</style></head><body>\n' +
-'<div class="wrap">\n' +
-headerHtml() + '\n' +
+'<div class="wrap home-wrap">\n' +
+'<header class="home-logo"><h1 class="home-brand"><span id="tw" class="tw">demo</span><span class="cursor"></span><span class="dot">.</span>0g<span class="dot">.</span>hk</h1></header>\n' +
 (alertTop ? '<div class="alert-warn">' + alertTop + '</div>\n' : '') +
 '<form onsubmit="return go(event)">\n' +
 '<div class="md-shell" id="mdShell">\n' +
@@ -84,8 +94,8 @@ headerHtml() + '\n' +
 '</div>\n' +
 '<div class="name-wrap' + (errorName ? ' err' : '') + '" id="nw"><input id="n" value="' + esc(prefillName) + '" autocomplete="off" inputmode="url" pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?" placeholder="talk" aria-label="自定义子域名"><span class="suffix">.' + BASE_HOST + '</span></div>' +
 '<span id="ns" class="name-status' + (errorName ? ' err' : '') + '">' + esc(errorName) + '</span>\n' +
-'<div class="action"><div class="ttl-row"><span class="lbl">保留</span>' + ttlChips + '</div>' +
-'<button type="submit" id="submitBtn">生成 →</button></div>\n' +
+'<div class="action"><div class="ttl-row" aria-label="保留时间">' + ttlChips + '</div>' +
+'<button type="submit" id="submitBtn" class="submit-btn">生成 →</button></div>\n' +
 '</form>\n' +
  footerHtml() + '\n' +
 '</div>\n' +
@@ -110,6 +120,9 @@ headerHtml() + '\n' +
 'var demos=["talk","q3-plan","read-me","demo","party","notes"],di=0;\n' +
 'function cyclePh(){if(document.activeElement===nInp||nInp.value)return;nInp.placeholder=demos[di=(di+1)%demos.length]}\n' +
 'setInterval(cyclePh,2200);cyclePh();\n' +
+'var twEl=document.getElementById("tw"),twI=0,twC=demos[0].length,twDel=true;\n' +
+'function tw(){var w=demos[twI];if(twDel){twEl.textContent=w.substring(0,--twC);if(twC===0){twDel=false;twI=(twI+1)%demos.length;setTimeout(tw,500);return}}else{twEl.textContent=w.substring(0,++twC);if(twC===w.length){twDel=true;setTimeout(tw,1800);return}}setTimeout(tw,twDel?55:105)}\n' +
+'setTimeout(tw,1500);\n' +
 'function updateCta(){var v=ta.value.trim();if(!v){submitBtn.textContent="生成 →";return}if(/^https?:\\/\\//i.test(v)){submitBtn.textContent="生成短链 →"}else{submitBtn.textContent="生成笔记 →"}}\n' +
 'ta.addEventListener("input",function(){updateCta();if(mdShell.classList.contains("previewing"))renderPreview()});updateCta();\n' +
 'function checkName(){var v=normalizeNameInput(nInp.value);nInp.value=v;if(!v){setStatus("","");setErr(false);nameAvailable=null;return}if(!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(v)){setStatus("格式：小写字母/数字/-","err");setErr(true);nameAvailable=false;return}setStatus("检查中…","pending");fetch("/exists?n="+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){if(normalizeNameInput(nInp.value)!==v)return;if(!d.valid){var s=nameStatusForReason(d);setStatus(s.msg,s.cls);setErr(true);nameAvailable=false}else if(d.exists){setStatus("已被占用（本人创建请用编辑链接）","warn");setErr(false);nameAvailable=false}else{setStatus("✓ 可用","ok");setErr(false);nameAvailable=true}}).catch(function(){setStatus("","")})}\n' +

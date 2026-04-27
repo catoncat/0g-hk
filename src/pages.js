@@ -257,6 +257,10 @@ export function notePage(sub, content) {
 '.markdown-body pre{margin:1em 0;padding:.9rem 1rem;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;overflow:auto;line-height:1.58;-webkit-overflow-scrolling:touch}\n' +
 '.markdown-body pre code{display:block;background:transparent;border:0;border-radius:0;padding:0;white-space:pre;font-size:.88rem;color:var(--text)}\n' +
 '.markdown-body hr{border:0;border-top:1px solid var(--border);margin:1.25rem 0}\n' +
+'.markdown-body table{border-collapse:collapse;margin:1em 0;display:block;overflow-x:auto;max-width:100%;font-size:.95rem;-webkit-overflow-scrolling:touch}\n' +
+'.markdown-body table th,.markdown-body table td{border:1px solid var(--border);padding:.45rem .7rem;text-align:left;vertical-align:top}\n' +
+'.markdown-body table th{background:var(--surface-2);font-weight:600}\n' +
+'.markdown-body table tr:nth-child(2n) td{background:rgba(128,128,128,.05)}\n' +
 '.markdown-body.big{font-size:clamp(1.3rem,4vw,1.8rem);line-height:1.45;text-align:center;padding:clamp(1.5rem,5vw,2.25rem) clamp(1rem,3vw,1.25rem);font-weight:500}\n' +
 '.raw-copy{position:absolute;left:-9999px;top:auto;width:1px;height:1px;opacity:0}\n' +
 '</style></head><body>\n' +

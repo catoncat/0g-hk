@@ -34,14 +34,14 @@ export function editorPage(opts) {
 'body{padding:clamp(16px,4vh,40px) 16px 14px;min-height:100svh;display:flex}\n' +
 '.home-wrap{width:100%;display:flex;flex:1;flex-direction:column;min-height:0}\n' +
 '.home-logo{flex:0 0 auto;margin:0 0 1.15rem}\n' +
-'.home-brand{font-family:var(--mono);font-size:clamp(2.35rem,8vw,3.35rem);font-weight:800;letter-spacing:-.04em;line-height:1;display:flex;align-items:baseline;flex-wrap:nowrap;min-width:0;margin:0;overflow:hidden}\n' +
+'.home-brand{font-family:var(--mono);font-size:clamp(2.35rem,8vw,3.35rem);font-weight:800;letter-spacing:-.04em;line-height:1;display:flex;align-items:baseline;flex-wrap:nowrap;min-width:0;margin:0}\n' +
 '.home-brand .dot{color:#10b981}\n' +
 '.home-brand .tw{color:var(--text);display:inline-block;min-width:.1em}\n' +
 '.home-brand .cursor{display:inline-block;width:.08em;height:.78em;background:#10b981;vertical-align:baseline;margin-left:.05em;animation:tw-blink 1s step-end infinite;border-radius:1px;align-self:center}\n' +
 '@keyframes tw-blink{50%{opacity:0}}\n' +
 'form{flex:1;display:flex;flex-direction:column;min-height:0}\n' +
 // Lightweight Markdown editor.
-'.md-shell{border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden;transition:border-color .12s,box-shadow .12s;display:flex;flex:1 1 auto;flex-direction:column;min-height:16rem}\n' +
+'.md-shell{border:1px solid var(--border);border-radius:10px;background:var(--surface);overflow:hidden;transition:border-color .12s,box-shadow .12s;display:flex;flex:1 1 0;flex-direction:column;min-height:16rem}\n' +
 '.md-shell:focus-within{border-color:var(--text);box-shadow:0 0 0 3px rgba(17,17,17,.06)}\n' +
 '@media(prefers-color-scheme:dark){.md-shell:focus-within{box-shadow:0 0 0 3px rgba(237,237,237,.08)}}\n' +
 '.md-bar{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.36rem;background:var(--surface-2);border-bottom:1px solid var(--border)}\n' +

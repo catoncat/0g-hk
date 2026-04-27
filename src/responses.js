@@ -20,12 +20,16 @@ export const SECURITY_HEADERS = {
   "x-robots-tag": "noindex, nofollow",
 };
 
-// Brand mark: green rounded square + black ring (a literal "0").
-// Geometry-only so it doesn't depend on system fonts.
+// Brand mark: two interlocking chain links (short-link metaphor) with a green dot
+// at the crossing. Stroke color adapts to the tab's color scheme.
 export const FAVICON_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
-  '<rect width="32" height="32" rx="6" fill="#10b981"/>' +
-  '<circle cx="16" cy="16" r="7" fill="none" stroke="#0a0a0a" stroke-width="3.5"/>' +
+  '<style>:root{--fg:#0a0a0a}@media(prefers-color-scheme:dark){:root{--fg:#ededed}}</style>' +
+  '<g fill="none" stroke="var(--fg)" stroke-width="5" stroke-linecap="round">' +
+  '<path d="M8 20V10a6 6 0 0 1 12 0v10"/>' +
+  '<path d="M12 12v10a6 6 0 0 0 12 0V12"/>' +
+  '</g>' +
+  '<circle cx="16" cy="16" r="3" fill="#10b981"/>' +
   '</svg>';
 
 export function faviconResponse() {

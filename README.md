@@ -6,7 +6,16 @@
 <子域名>.0g.hk   →   一条链接、一段文字、一份 AI prompt
 ```
 
-无账号、无数据库、无追踪脚本。Cloudflare Worker + KV。
+无账号、无数据库、无追踪脚本。Cloudflare Worker + KV，单文件 Worker，TTL ≤ 7 天。
+
+**Live** · <https://0g.hk> 　|　 **API** · [`docs/API.md`](docs/API.md) 　|　 **LLM 手册** · <https://0g.hk/llms.txt>
+
+## 为什么会有这个
+
+- **临时分享、不留痕**：会议链接、Wi-Fi 密码、长 prompt，发出去几天自动消失，不用回头清理。
+- **域名即文案**：`check-this-out.0g.hk` 比 `bit.ly/3xK9p` 体面十倍。海报、二维码、口播都能直接读。
+- **AI 友好**：`curl 0g.hk` 拿到的是 plain-text 手册，把这条丢给 ChatGPT / Claude，一句「去 `0g.hk` 看说明，然后建一个 `foo`」就能跑通。
+- **零账号、零追踪**：没有登录、没有 analytics 脚本、KV 只存内容和 token hash。
 
 ## 三十秒上手
 
@@ -23,9 +32,7 @@ curl -sS -H 'Accept: application/json' -H 'Content-Type: application/json' \
   https://0g.hk/
 ```
 
-浏览器直接打开 <https://0g.hk> 也有编辑器。AI / 脚本用 `curl 0g.hk` 拿到的是**纯文本手册**而不是 HTML（content negotiation）。
-
-完整 API：[`docs/API.md`](docs/API.md) · 纯文本快速参考：<https://0g.hk/llms.txt>
+浏览器打开 <https://0g.hk> 是 Markdown 编辑器（实时预览，支持 GFM 表格）。AI / 脚本拿到的是 plain-text 手册而不是 HTML（content negotiation）。
 
 ## 产品约束
 
@@ -79,15 +86,17 @@ docs/review/        Cloudflare 配置实施记录与后续计划
 wrangler.toml       Cloudflare Worker 配置
 ```
 
-## 本地开发 / 部署
+## 自部署
+
+> 前置：Cloudflare 账号 + 一个 KV namespace + 一个挂在 Cloudflare 的域名（或直接用 `*.workers.dev`）。
 
 ```bash
 npm install              # 安装本地 wrangler
-npm run dev              # 本地
-npm run deploy           # 推到生产（account_id 已写在 wrangler.toml）
+npm run dev              # 本地（http://localhost:8787）
+npm run deploy           # 推到 Cloudflare
 ```
 
-域名绑定：`0g.hk` 作为 Custom Domain，`*.0g.hk/*` 作为通配路由；KV namespace 绑在 `NOTES`。
+把 `wrangler.toml` 里的 `account_id`、`route`、`kv_namespaces.id` 替换成自己的就能跑。域名上：`0g.hk` 作为 Custom Domain，`*.0g.hk/*` 作为通配路由，KV namespace 绑在 `NOTES`。
 
 ## 许可
 

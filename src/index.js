@@ -3,7 +3,7 @@
 import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, TEXT_MAX, URL_MAX, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
 import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName } from "./util.js";
 import { aiModerate, checkSafeBrowsing } from "./moderation.js";
-import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, llmsTextResponse, statusPage } from "./responses.js";
+import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, llmsTextResponse, statusPage, faviconResponse } from "./responses.js";
 import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./pages.js";
 import { handleAdmin } from "./admin.js";
 
@@ -296,6 +296,8 @@ export default {
     const url = new URL(req.url);
     const host = url.hostname.toLowerCase();
     if (req.method === "OPTIONS") return corsPreflight();
+
+    if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") return faviconResponse();
 
     if (host === BASE_HOST) {
       if (url.pathname === "/exists") return handleExists(env, url);

@@ -29,6 +29,7 @@ export function editorPage(opts) {
 '<meta name="theme-color" content="#fafafa" media="(prefers-color-scheme:light)">' +
 '<meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme:dark)">' +
 '<meta name="description" content="把一段文字或链接变成 xxx.0g.hk。无账号、一次 GET 完成。">' +
+'<link rel="icon" type="image/svg+xml" href="/favicon.svg">' +
 '<title>' + BASE_HOST + ' — 临时笔记 · 短链</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
 'body{padding:clamp(16px,4vh,40px) 16px 14px;min-height:100svh;display:flex}\n' +
@@ -184,7 +185,7 @@ export function resultPage(name, content, mode, ttlKey, editToken) {
     '</details>\n';
 
   const body = '<!DOCTYPE html>\n' +
-'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + header + ' · ' + esc(name) + '</title>\n' +
+'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><title>' + header + ' · ' + esc(name) + '</title>\n' +
 '<style>\n' + COMMON_CSS + '\n' +
 'body{padding-top:clamp(20px,6vw,56px)}\n' +
 '.card{border-radius:20px;box-shadow:0 2px 12px rgba(0,0,0,.028)}\n' +
@@ -243,7 +244,7 @@ export function notePage(sub, content) {
     '<div class="seg"><button type="button" onclick="navigator.clipboard.writeText(document.getElementById(\'raw-copy\').value).then(function(){var b=event.currentTarget;b.textContent=\'已复制\';setTimeout(function(){b.textContent=\'复制\'},1200)})">复制</button>' +
     '<a href="/raw">原文</a></div>';
   const body = '<!DOCTYPE html>\n' +
-'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · ' + BASE_HOST + '</title>\n' +
+'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><title>' + esc(sub) + ' · ' + BASE_HOST + '</title>\n' +
 '<meta name="robots" content="noindex">\n' +
 '<style>\n' + COMMON_CSS + '\n' +
 '.markdown-body{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:clamp(1rem,3vw,1.35rem);font-size:1rem;line-height:1.72;color:var(--text);overflow-wrap:anywhere}\n' +
@@ -279,7 +280,7 @@ export function interstitialPage(sub, target) {
   const parsed = parseUrlSafe(target);
   const host = parsed ? parsed.hostname : target;
   const body = '<!DOCTYPE html>\n' +
-'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>即将跳转 · ' + BASE_HOST + '</title>\n' +
+'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><title>即将跳转 · ' + BASE_HOST + '</title>\n' +
 '<meta name="robots" content="noindex">\n' +
 '<style>\n' + COMMON_CSS + '\n' +
 '.warn-card{max-width:560px;margin-left:auto;margin-right:auto;border-left:3px solid var(--warn)}\n' +
@@ -313,7 +314,7 @@ footerHtml() + '\n' +
 
 export function editNotePage(sub, ttlKey) {
   const body = '<!DOCTYPE html>\n' +
-'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>编辑 ' + esc(sub) + ' · ' + BASE_HOST + '</title>\n' +
+'<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><title>编辑 ' + esc(sub) + ' · ' + BASE_HOST + '</title>\n' +
 '<meta name="robots" content="noindex">\n' +
 '<style>\n' + COMMON_CSS + '\n' +
 '.meta{font-family:var(--mono);font-size:.85rem;color:var(--faint);margin-bottom:1rem}\n' +
@@ -355,7 +356,7 @@ headerHtml() + '\n' +
 }
 
 export function notFoundPage(sub) {
-  const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(sub) + ' · 还没人占用</title>' +
+  const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><title>' + esc(sub) + ' · 还没人占用</title>' +
 '<meta name="robots" content="noindex">' +
 '<style>\n' + COMMON_CSS + '\n' +
 '.nf-body{text-align:center}\n' +

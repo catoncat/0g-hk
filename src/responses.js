@@ -20,6 +20,24 @@ export const SECURITY_HEADERS = {
   "x-robots-tag": "noindex, nofollow",
 };
 
+// Brand mark: green rounded square + black ring (a literal "0").
+// Geometry-only so it doesn't depend on system fonts.
+export const FAVICON_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+  '<rect width="32" height="32" rx="6" fill="#10b981"/>' +
+  '<circle cx="16" cy="16" r="7" fill="none" stroke="#0a0a0a" stroke-width="3.5"/>' +
+  '</svg>';
+
+export function faviconResponse() {
+  return new Response(FAVICON_SVG, {
+    headers: {
+      "content-type": "image/svg+xml",
+      "cache-control": "public, max-age=86400, immutable",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
+
 export function html(body, status = 200, extraHeaders = {}) {
   return new Response(body, {
     status,
@@ -88,7 +106,7 @@ export function statusPage(opts) {
   const codeBlock = code
     ? '<p class="muted">错误码：<span class="mono">' + esc(code) + "</span></p>"
     : "";
-  const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+  const body = '<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" type="image/svg+xml" href="/favicon.svg">' +
     '<meta name="robots" content="noindex"><title>' + esc(title) + " · " + BASE_HOST + '</title><style>' + COMMON_CSS +
     '.status-card{max-width:560px;margin:0 auto}.status-card h1{margin:0 0 .65rem;font-size:1.15rem}.status-card .lead{margin:0 0 .75rem;font-size:.95rem;line-height:1.6}.status-card .actions{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:1rem}.status-card.tone-error{border-left:3px solid var(--err)}.status-card.tone-warn{border-left:3px solid var(--warn)}.status-card.tone-ok{border-left:3px solid var(--ok)}.status-card.tone-info{border-left:3px solid var(--border-strong)}.status-card .rich{margin:.75rem 0 0}.status-card .rich p:last-child{margin-bottom:0}' +
     '</style></head><body><div class="wrap">' + headerHtml() + '<div class="card status-card ' + toneClass + '">' +

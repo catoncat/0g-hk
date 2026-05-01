@@ -15,7 +15,7 @@ Truth sources:
 - When working inside the source checkout, prefer the repo's `docs/API.md`
 
 Companion tool:
-- Use `scripts/0ghk-history.mjs` when the user wants to browse, search, open, copy, or renew locally saved publication history. It reads `${XDG_DATA_HOME:-$HOME/.local/share}/0g-hk/links.jsonl` and never prints edit tokens.
+- Use `scripts/0ghk-history.mjs` when the user wants to browse, search, edit, open, copy, or renew locally saved publication history. It reads `${XDG_DATA_HOME:-$HOME/.local/share}/0g-hk/links.jsonl` and never prints edit tokens.
 
 Rules:
 - Create in JSON/form mode, share `shortUrl`, and use `rawUrl` for agents or scripts.

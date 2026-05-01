@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 const BASE_HOST = process.env.OGHK_BASE_HOST || "0g.hk";
 const DEFAULT_LEDGER = path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share"), "0g-hk", "links.jsonl");
 
@@ -18,6 +18,7 @@ Usage:
   0ghk-history --list [--ledger PATH] [--search TEXT] [--show-events]
   0ghk-history --json [--ledger PATH] [--search TEXT] [--show-events]
   0ghk-history --renew NAME [--ttl 1h|1d|7d] [--dry-run] [--ledger PATH]
+  0ghk-history --edit NAME [--content-file PATH] [--dry-run] [--ledger PATH]
   0ghk-history --open short|raw|edit NAME [--ledger PATH]
   0ghk-history --copy short|raw|edit NAME [--ledger PATH]
 
@@ -25,9 +26,10 @@ TUI keys:
   j/k, ↑/↓        move
   /               search names, titles, sources
   a               toggle latest publications / every ledger event
+  e               edit selected publication in $VISUAL/$EDITOR
   r               renew selected publication (confirm with y)
   o / O           open shortUrl / rawUrl
-  e               open edit URL (local browser, sensitive)
+  b               open browser edit URL (local browser, sensitive)
   c / R / E       copy shortUrl / rawUrl / edit URL
   ?               help
   esc             clear search, message, or confirmation
@@ -53,6 +55,8 @@ function parseArgs(argv) {
     json: false,
     showEvents: false,
     renew: "",
+    edit: "",
+    contentFile: "",
     ttl: "",
     dryRun: false,
     open: null,
@@ -74,6 +78,10 @@ function parseArgs(argv) {
     else if (a === "--show-events") args.showEvents = true;
     else if (a === "--renew") args.renew = argv[++i] || "";
     else if (a.startsWith("--renew=")) args.renew = a.slice("--renew=".length);
+    else if (a === "--edit") args.edit = argv[++i] || "";
+    else if (a.startsWith("--edit=")) args.edit = a.slice("--edit=".length);
+    else if (a === "--content-file") args.contentFile = argv[++i] || "";
+    else if (a.startsWith("--content-file=")) args.contentFile = a.slice("--content-file=".length);
     else if (a === "--ttl") args.ttl = argv[++i] || "";
     else if (a.startsWith("--ttl=")) args.ttl = a.slice("--ttl=".length);
     else if (a === "--dry-run") args.dryRun = true;
@@ -331,6 +339,61 @@ function copyText(text) {
   throw new Error("no clipboard command found (pbcopy/wl-copy/xclip/xsel)");
 }
 
+function editRequestFor(entry, content, ttl) {
+  const token = entry.editToken || tokenFromEditUrl(entry.editUrl);
+  if (!token) throw new Error(`${entry.name} has no saved edit token`);
+  const url = entry.shortUrl || `https://${entry.name}.${BASE_HOST}`;
+  const body = { token, content };
+  if (ttl) body.ttl = ttl;
+  return { url, body };
+}
+
+async function editEntryContent(entry, content, opts = {}) {
+  const ttl = opts.ttl || entry.ttl || "";
+  if (ttl && !["1h", "1d", "7d"].includes(ttl)) throw new Error(`invalid ttl: ${ttl}`);
+  const request = editRequestFor(entry, content, ttl);
+  if (opts.dryRun) {
+    return { dryRun: true, request: { url: request.url, body: { ...request.body, token: "<redacted>" } } };
+  }
+  const response = await fetch(request.url, {
+    method: "POST",
+    headers: { "accept": "application/json", "content-type": "application/json" },
+    body: JSON.stringify(request.body),
+  });
+  const text = await response.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch { /* keep text */ }
+  if (!response.ok) {
+    const code = json && json.error && json.error.code ? json.error.code : response.status;
+    throw new Error(`edit failed for ${entry.name}: ${code}`);
+  }
+  return json || { ok: true, text };
+}
+
+async function readEntryContent(entry) {
+  const rawUrl = entry.rawUrl || (entry.shortUrl ? `${entry.shortUrl}/raw` : `https://${entry.name}.${BASE_HOST}/raw`);
+  const response = await fetch(rawUrl, { headers: { "accept": "text/plain" } });
+  if (!response.ok) throw new Error(`load raw content failed for ${entry.name}: ${response.status}`);
+  return await response.text();
+}
+
+async function editEntryInEditor(entry, opts = {}) {
+  const before = await readEntryContent(entry);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "0ghk-edit-"));
+  const file = path.join(dir, `${entry.name || "note"}.md`);
+  fs.writeFileSync(file, before, { mode: 0o600 });
+  const editor = process.env.VISUAL || process.env.EDITOR || (process.platform === "win32" ? "notepad" : "vi");
+  const result = spawnSync(editor, [file], { stdio: "inherit", shell: true });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`editor exited with status ${result.status}`);
+  const after = fs.readFileSync(file, "utf8");
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+  if (after === before) return { changed: false };
+  const updated = await editEntryContent(entry, after, { ttl: opts.ttl || entry.ttl });
+  appendEditEvent(opts.ledgerFile, entry, updated, after.length, opts.ttl || entry.ttl);
+  return { changed: true, result: updated };
+}
+
 async function renewEntry(entry, opts) {
   const token = entry.editToken || tokenFromEditUrl(entry.editUrl);
   if (!token) throw new Error(`${entry.name} has no saved edit token`);
@@ -379,6 +442,28 @@ function appendRenewEvent(file, entry, result, ttl) {
   try { fs.chmodSync(file, 0o600); } catch { /* best-effort */ }
 }
 
+function appendEditEvent(file, entry, result, contentLength, ttl) {
+  const now = new Date().toISOString();
+  const row = {
+    event: "edited",
+    name: entry.name,
+    short_url: result.shortUrl || result.short_url || entry.shortUrl,
+    raw_url: result.rawUrl || result.raw_url || entry.rawUrl,
+    ttl: result.ttl || ttl || entry.ttl,
+    expires_at: result.expiresAt || result.expires_at || entry.expiresAt,
+    content_length: result.contentLength || result.content_length || contentLength,
+    note: "edited by 0ghk-history tui",
+    recorded_at: now,
+  };
+  for (const k of Object.keys(row)) if (row[k] === undefined || row[k] === "") delete row[k];
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, "", { mode: 0o600 });
+  }
+  fs.appendFileSync(file, JSON.stringify(row) + "\n", { mode: 0o600 });
+  try { fs.chmodSync(file, 0o600); } catch { /* best-effort */ }
+}
+
 function makeState(ledgerFile, initialRows, errors) {
   return {
     ledgerFile,
@@ -390,6 +475,7 @@ function makeState(ledgerFile, initialRows, errors) {
     message: "",
     confirm: null,
     help: false,
+    withSuspendedTerminal: null,
   };
 }
 
@@ -423,10 +509,20 @@ function runTui(ledgerFile, rows, errors) {
     stdin.pause();
   };
   const rerender = () => render(stdout, state);
+  state.withSuspendedTerminal = async (fn) => {
+    stdout.write("\x1b[?25h\x1b[0m\n");
+    if (stdin.isTTY) stdin.setRawMode(false);
+    try {
+      return await fn();
+    } finally {
+      if (stdin.isTTY) stdin.setRawMode(true);
+      stdout.write("\x1b[?25l");
+    }
+  };
   const exit = () => { cleanup(); process.exit(0); };
   stdin.on("data", async (buf) => {
-    const key = decodeKey(buf);
-    try {
+    for (const key of decodeKeys(buf)) {
+      try {
       if (state.confirm) {
         if (key === "y" || key === "Y") {
           const action = state.confirm;
@@ -460,19 +556,35 @@ function runTui(ledgerFile, rows, errors) {
       else if (key === "k" || key === "up") state.cursor = Math.max(0, state.cursor - 1);
       else if (key === "g") state.cursor = 0;
       else if (key === "G") state.cursor = Math.max(0, currentEntries(state).length - 1);
-      else if (["o", "O", "e", "c", "R", "E", "r"].includes(key)) await handleActionKey(key, state);
+      else if (["o", "O", "b", "e", "c", "R", "E", "r"].includes(key)) await handleActionKey(key, state);
       rerender();
     } catch (err) {
       state.message = String(err && err.message ? err.message : err);
       rerender();
+    }
     }
   });
   stdout.write("\x1b[?25l");
   rerender();
 }
 
-function decodeKey(buf) {
+function decodeKeys(buf) {
   const s = buf.toString("utf8");
+  const keys = [];
+  for (let i = 0; i < s.length;) {
+    const seq = s.slice(i, i + 3);
+    if (seq === "\u001b[A" || seq === "\u001b[B") {
+      keys.push(seq === "\u001b[A" ? "up" : "down");
+      i += 3;
+      continue;
+    }
+    keys.push(decodeKey(s[i]));
+    i += 1;
+  }
+  return keys;
+}
+
+function decodeKey(s) {
   if (s === "\u0003") return "ctrl+c";
   if (s === "\r" || s === "\n") return "enter";
   if (s === "\u007f" || s === "\b") return "backspace";
@@ -485,12 +597,23 @@ function decodeKey(buf) {
 async function handleActionKey(key, state) {
   const entry = currentEntry(state);
   if (!entry) { state.message = "No selected entry"; return; }
-  if (key === "o" || key === "O" || key === "e") {
-    const kind = key === "O" ? "raw" : key === "e" ? "edit" : "short";
+  if (key === "o" || key === "O" || key === "b") {
+    const kind = key === "O" ? "raw" : key === "b" ? "edit" : "short";
     const url = urlFor(entry, kind);
     if (!url) throw new Error(`missing ${kind} URL for ${entry.name}`);
     openUrl(url);
     state.message = kind === "edit" ? "Opened local edit URL (secret not printed)" : `Opened ${kind} URL`;
+    return;
+  }
+  if (key === "e") {
+    state.confirm = { text: `Edit ${entry.name} in $EDITOR and save back to 0g.hk? y/N`, run: async () => {
+      if (!state.withSuspendedTerminal) throw new Error("terminal suspend hook unavailable");
+      const outcome = await state.withSuspendedTerminal(() => editEntryInEditor(entry, { ledgerFile: state.ledgerFile, ttl: entry.ttl }));
+      const reread = readLedger(state.ledgerFile);
+      state.rows = reread.rows;
+      state.parseErrors = reread.errors;
+      state.message = outcome.changed ? `Edited ${entry.name}` : `No changes for ${entry.name}`;
+    } };
     return;
   }
   if (key === "c" || key === "R" || key === "E") {
@@ -531,7 +654,7 @@ function render(stdout, state) {
   const start = Math.max(0, Math.min(state.cursor - Math.floor(bodyH / 2), Math.max(0, entries.length - bodyH)));
   const lines = [];
   lines.push(color(`0ghk-history ${VERSION}`, "bold") + `  ${entries.length} ${state.showEvents ? "events" : "publications"}  ledger: ${state.ledgerFile}`);
-  lines.push(`${state.showEvents ? "all events" : "latest only"}  search: ${state.search ? color(state.search, "yellow") : "-"}  keys: ? help, / search, a events, r renew, q quit`);
+  lines.push(`${state.showEvents ? "all events" : "latest only"}  search: ${state.search ? color(state.search, "yellow") : "-"}  > selected, * editable, ! expired  keys: ? help, / search, e edit, r renew, q quit`);
   lines.push("─".repeat(cols));
   for (let i = 0; i < bodyH; i += 1) {
     const entry = entries[start + i];
@@ -548,12 +671,13 @@ function render(stdout, state) {
 }
 
 function renderListLine(e, active, width) {
-  const badge = e.editToken || e.editUrl ? "🔑" : " ";
+  const marker = active ? ">" : " ";
+  const badge = e.editToken || e.editUrl ? "*" : " ";
   const expired = isExpired(e.expiresAt) ? "!" : " ";
   const name = padPlain(e.name || "(unnamed)", Math.max(10, width - 18));
   const ttl = padPlain(e.ttl || "-", 3);
   const event = padPlain(e.lastEvent || "-", 8);
-  const line = `${badge}${expired} ${name} ${ttl} ${event}`;
+  const line = `${marker}${badge}${expired} ${name} ${ttl} ${event}`;
   return active ? color(padPlain(line, width), "inverse") : padPlain(line, width);
 }
 
@@ -570,7 +694,7 @@ function renderDetails(e, width, height) {
   if (e.target) lines.push(wrapLine(`target: ${e.target}`, width));
   if (e.shortUrl) lines.push(wrapLine(`short: ${e.shortUrl}`, width));
   if (e.rawUrl) lines.push(wrapLine(`raw:   ${e.rawUrl}`, width));
-  if (e.editUrl) lines.push("edit:  <saved locally; press e to open or E to copy>");
+  if (e.editUrl) lines.push("edit:  <saved locally; press e to edit, b browser, E copy>");
   lines.push("");
   lines.push(color("history", "bold"));
   for (const row of [...e.events].slice(-Math.max(3, height - lines.length - 1)).reverse()) {
@@ -596,8 +720,8 @@ function overlayHelp(lines, cols, rows) {
   const box = [
     " 0ghk-history help ",
     " j/k ↑/↓ move       / search        a latest/events ",
-    " r renew selected   o open short    O open raw ",
-    " e open edit URL    c copy short    R copy raw ",
+    " e edit in $EDITOR  r renew         o open short ",
+    " O open raw         b browser edit  c copy short ",
     " E copy edit URL    esc clear       q quit ",
     " Edit tokens and edit URLs are never printed. ",
   ];
@@ -668,6 +792,19 @@ async function main() {
     const result = await renewEntry(entry, { ttl: args.ttl, dryRun: args.dryRun });
     if (!args.dryRun) appendRenewEvent(args.ledger, entry, result, args.ttl || entry.ttl);
     console.log(JSON.stringify(args.dryRun ? result : { ok: true, name: entry.name, ttl: result.ttl || args.ttl || entry.ttl, expires_at: result.expiresAt || result.expires_at }, null, 2));
+    return;
+  }
+  if (args.edit) {
+    const entry = pickEntry(publications, args.edit);
+    if (args.contentFile) {
+      const content = fs.readFileSync(expandHome(args.contentFile), "utf8");
+      const result = await editEntryContent(entry, content, { ttl: args.ttl || entry.ttl, dryRun: args.dryRun });
+      if (!args.dryRun) appendEditEvent(args.ledger, entry, result, content.length, args.ttl || entry.ttl);
+      console.log(JSON.stringify(args.dryRun ? result : { ok: true, name: entry.name, ttl: result.ttl || args.ttl || entry.ttl, expires_at: result.expiresAt || result.expires_at }, null, 2));
+    } else {
+      const result = await editEntryInEditor(entry, { ledgerFile: args.ledger, ttl: args.ttl || entry.ttl });
+      console.log(JSON.stringify({ ok: true, name: entry.name, changed: result.changed }, null, 2));
+    }
     return;
   }
   if (args.open) {

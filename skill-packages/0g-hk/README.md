@@ -25,6 +25,10 @@ What it does:
 - Lists latest publications or every ledger event.
 - Searches by name, title, source, kind, event, or URL.
 - Shows per-publication history without printing edit tokens.
+- Marks the current row with a visible `>` selector, independent of terminal
+  inverse-color support.
+- Edits a publication in `$VISUAL`/`$EDITOR`, then saves it back through the
+  JSON edit API and appends an `edited` event.
 - Opens/copies `shortUrl`, `rawUrl`, and local `editUrl` on demand.
 - Renews a publication through the JSON edit API and appends a `renewed` event.
 
@@ -34,6 +38,8 @@ Useful non-interactive commands:
 node scripts/0ghk-history.mjs --list
 node scripts/0ghk-history.mjs --json --search report
 node scripts/0ghk-history.mjs --renew my-note --dry-run
+node scripts/0ghk-history.mjs --edit my-note
+node scripts/0ghk-history.mjs --edit my-note --content-file note.md --dry-run
 node scripts/0ghk-history.mjs --open edit my-note
 node scripts/0ghk-history.mjs --copy short my-note
 ```
@@ -43,6 +49,6 @@ Security model:
 - `editToken` and `editUrl` are treated as local secrets.
 - The TUI never renders those values and JSON/list output only reports whether
   a saved credential exists.
-- Copy/open actions may use the secret locally but do not echo it to stdout.
+- Edit/copy/open actions may use the secret locally but do not echo it to stdout.
 - The ledger file should remain mode `600`; the tool sets that mode when it
-  appends renew events.
+  appends edit or renew events.

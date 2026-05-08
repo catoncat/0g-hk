@@ -1,6 +1,7 @@
 // 0g.hk Worker — entry + core handlers (create/edit/subdomain/abuse/exists).
 // Presentation, gates, storage, and admin are in sibling modules.
 import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, TEXT_MAX, URL_MAX, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
+import { loadConfig } from "./config.js";
 import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName } from "./util.js";
 import { aiModerate, checkSafeBrowsing } from "./moderation.js";
 import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, llmsTextResponse, statusPage, faviconResponse } from "./responses.js";
@@ -32,8 +33,9 @@ async function handleCreate(req, env, url) {
 
   const urlMode = isUrl(rawContent);
   const content = urlMode ? normalizeUrl(rawContent) : rawContent;
-  if (urlMode && content.length > URL_MAX) return replyError(req, url, "url_too_long", "URL too long (max " + URL_MAX + ")", 413, { maxLength: URL_MAX });
-  if (!urlMode && content.length > TEXT_MAX) return replyError(req, url, "text_too_long", "Text too long (max " + TEXT_MAX + ")", 413, { maxLength: TEXT_MAX });
+  const cfg = await loadConfig(env);
+  if (urlMode && content.length > cfg.urlMax) return replyError(req, url, "url_too_long", "URL too long (max " + cfg.urlMax + ")", 413, { maxLength: cfg.urlMax });
+  if (!urlMode && content.length > cfg.textMax) return replyError(req, url, "text_too_long", "Text too long (max " + cfg.textMax + ")", 413, { maxLength: cfg.textMax });
   if (urlMode && !parseUrlSafe(content)) return replyError(req, url, "malformed_url", "Malformed URL", 400);
 
   if (name) {
@@ -119,8 +121,9 @@ async function handleEdit(req, env, sub, url) {
   if (contentIn) {
     urlMode = isUrl(contentIn);
     if (urlMode) contentIn = normalizeUrl(contentIn);
-    if (urlMode && contentIn.length > URL_MAX) return replyError(req, url, "url_too_long", "URL too long", 413, { maxLength: URL_MAX });
-    if (!urlMode && contentIn.length > TEXT_MAX) return replyError(req, url, "text_too_long", "Text too long", 413, { maxLength: TEXT_MAX });
+    const cfg = await loadConfig(env);
+    if (urlMode && contentIn.length > cfg.urlMax) return replyError(req, url, "url_too_long", "URL too long", 413, { maxLength: cfg.urlMax });
+    if (!urlMode && contentIn.length > cfg.textMax) return replyError(req, url, "text_too_long", "Text too long", 413, { maxLength: cfg.textMax });
     if (urlMode && !parseUrlSafe(contentIn)) return replyError(req, url, "malformed_url", "Malformed URL", 400);
   }
 
@@ -302,10 +305,10 @@ export default {
     if (host === BASE_HOST) {
       if (url.pathname === "/exists") return handleExists(env, url);
       if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) return handleAdmin(req, env, url);
-      if (url.pathname === "/llms.txt" || (url.pathname === "/robots.txt" && url.searchParams.has("llms"))) return llmsTextResponse();
+      if (url.pathname === "/llms.txt" || (url.pathname === "/robots.txt" && url.searchParams.has("llms"))) return llmsTextResponse(await loadConfig(env));
       if (url.pathname === "/" || url.pathname === "") {
         if (req.method === "POST" || req.method === "PUT" || url.searchParams.has("c")) return handleCreate(req, env, url);
-        if (req.method === "GET" && !isBrowserRequest(req)) return llmsTextResponse();
+        if (req.method === "GET" && !isBrowserRequest(req)) return llmsTextResponse(await loadConfig(env));
         return editorPage({ prefillName: (url.searchParams.get("n") || "").toLowerCase().trim(), prefillContent: url.searchParams.get("c") || "" });
       }
       if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404);

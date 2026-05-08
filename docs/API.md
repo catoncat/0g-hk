@@ -98,7 +98,7 @@ curl -sS -X POST https://0g.hk/ \
 
 | 参数      | body/query     | 说明                                                                 |
 | --------- | -------------- | -------------------------------------------------------------------- |
-| `content` / `c` | body 优先，query 回退 | 笔记正文（≤8KB）或 URL（≤2KB，可省略 `https://`） |
+| `content` / `c` | body 优先，query 回退 | 笔记正文（≤24KB，可在 /admin/config 调整）或 URL（≤2KB，可省略 `https://`） |
 | `name` / `n`    | 可选           | 首尾必须是小写字母/数字，中间可含 `-`；空格/下划线自动转 `-`。不给则随机 6 字符；自定义名建议保持 DNS label 长度（≤63 字符） |
 | `ttl`           | 可选           | `1h` / `1d` / `7d`（默认 `7d`，由产品策略限定最长 7 天，到期前可用 `renew` 续期）               |
 
@@ -189,7 +189,7 @@ curl -sS 'https://0g.hk/exists?n=foo'
 | 409  | `name_taken`       | 名字已被占用                       |
 | 410  | `disabled`         | 内容因举报或管理操作被禁用         |
 | 413  | `url_too_long`     | URL 超 2KB                         |
-| 413  | `text_too_long`    | 文本超 8KB                         |
+| 413  | `text_too_long`    | 文本超限 (默认 24KB，可在 /admin/config 调整)                         |
 | 429  | `rate_limited`     | 超频（10/min/IP）                  |
 | 500  | `corrupt_meta`     | 元数据损坏（应上报）               |
 | 500  | `alloc_failed`     | 随机名 6 次仍冲突（应上报）        |

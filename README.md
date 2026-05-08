@@ -38,7 +38,7 @@ curl -sS -H 'Accept: application/json' -H 'Content-Type: application/json' \
 
 | 项 | 值 |
 |---|---|
-| 内容类型 | 文本（≤ 8KB）或 URL（≤ 2KB） |
+| 内容类型 | 文本（≤ 24KB，可在 /admin/config 调整）或 URL（≤ 2KB） |
 | 子域名 | 小写字母/数字/-（空格/下划线自动转 -） |
 | TTL | `1h` / `1d` / `7d`，默认 `7d`，**最长 7 天** |
 | 续期 | `POST <sub>.0g.hk/?edit=<token>&renew=1`，重置到期窗口 |

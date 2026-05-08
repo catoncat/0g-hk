@@ -1,6 +1,6 @@
 ---
 name: 0g-hk
-description: Use when the user wants a 0g.hk / og temporary public link, paste, Markdown note, code or prompt share, semantic short URL, curl-readable raw note, or wants to list, edit, renew, or find locally saved edit credentials for prior 0g.hk links. Do not use for permanent hosting, private access control, collaborative docs, SLA-backed publishing, or content over 8KB.
+description: Use when the user wants a 0g.hk / og temporary public link, paste, Markdown note, code or prompt share, semantic short URL, curl-readable raw note, or wants to list, edit, renew, or find locally saved edit credentials for prior 0g.hk links. Do not use for permanent hosting, private access control, collaborative docs, SLA-backed publishing, or content over the configured limit (24KB by default; tunable in /admin/config).
 ---
 
 # 0g.hk

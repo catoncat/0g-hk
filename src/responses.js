@@ -234,7 +234,10 @@ export async function readBody(req) {
 }
 
 // ---- llms.txt ----
-export function llmsText() {
+export function llmsText(cfg) {
+  const textMax = (cfg && cfg.textMax) || TEXT_MAX;
+  const urlMax = (cfg && cfg.urlMax) || URL_MAX;
+  const rl = (cfg && cfg.rateLimit) || RATE_LIMIT;
   const lines = [
     "# 0g.hk",
     "",
@@ -272,16 +275,16 @@ export function llmsText() {
     "## Limits",
     "",
     "- name: lowercase letters, numbers, hyphen; start/end with alnum",
-    "- text: " + TEXT_MAX + " bytes, url: " + URL_MAX + " bytes",
+    "- text: " + textMax + " bytes, url: " + urlMax + " bytes",
     "- ttl: " + Object.keys(TTL_OPTIONS).join(" / ") + " (default " + DEFAULT_TTL + ")",
-    "- rate: create/edit " + RATE_LIMIT + " req/min/ip",
+    "- rate: create/edit " + rl + " req/min/ip",
     "- abuse: " + ABUSE_EMAIL,
   ];
   return lines.join("\n") + "\n";
 }
 
-export function llmsTextResponse() {
-  return new Response(llmsText(), {
+export function llmsTextResponse(cfg) {
+  return new Response(llmsText(cfg), {
     status: 200,
     headers: {
       "content-type": "text/plain;charset=utf-8",

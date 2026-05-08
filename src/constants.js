@@ -43,7 +43,8 @@ export const ABUSE_AUTO_DISABLE = 3;
 export const ABUSE_EMAIL = "abuse@0g.hk";
 
 export const NAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
-export const TEXT_MAX = 8 * 1024;
+// Defaults; runtime overrides live in KV via src/config.js (admin /admin/config UI).
+export const TEXT_MAX = 24 * 1024;
 export const URL_MAX = 2 * 1024;
 export const RATE_LIMIT = 10;
 

@@ -319,12 +319,12 @@ export function editNotePage(sub, ttlKey) {
 '<style>\n' + COMMON_CSS + '\n' +
 '.meta{font-family:var(--mono);font-size:.85rem;color:var(--faint);margin-bottom:1rem}\n' +
 '.meta strong{color:var(--text)}\n' +
-'.row{display:flex;gap:.75rem;align-items:center;margin-top:1.25rem}\n' +
-'.row button{flex:0 0 auto}\n' +
-'.row .status{flex:1;font-size:.85rem;color:var(--faint);min-height:1.2em}\n' +
+'.edit-row{display:flex;gap:.75rem;align-items:center;margin-top:1.25rem}\n' +
+'.edit-row button{flex:0 0 auto}\n' +
+'.edit-row .status{flex:1;font-size:.85rem;color:var(--faint);min-height:1.2em}\n' +
 '.status.ok{color:var(--ok)}.status.err{color:var(--err)}\n' +
-'.error-box{background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:1rem;font-size:.9rem;line-height:1.5}\n' +
-'@media(prefers-color-scheme:dark){.error-box{background:#2a0e0e;border-color:#7f1d1d;color:#fca5a5}}\n' +
+'.alert-err{background:rgba(176,42,42,.07);border:1px solid rgba(176,42,42,.28);color:var(--err);border-radius:8px;padding:.85rem 1rem;font-size:.9rem;line-height:1.55}\n' +
+'@media(prefers-color-scheme:dark){.alert-err{background:rgba(224,112,112,.08);border-color:rgba(224,112,112,.32)}}\n' +
 '</style></head><body>\n' +
 '<div class="wrap">\n' +
 headerHtml() + '\n' +
@@ -333,9 +333,9 @@ headerHtml() + '\n' +
 '<div class="meta"><strong>' + esc(sub) + '.' + BASE_HOST + '</strong> · 保留 ' + esc(ttlKey) + '</div>\n' +
 '<div id="wrap" style="display:none">\n' +
 '<textarea id="c" autofocus></textarea>\n' +
-'<div class="row"><button id="s" onclick="save()">保存</button><span id="st" class="status"></span></div>\n' +
+'<div class="edit-row"><button id="s" class="btn primary" onclick="save()">保存</button><span id="st" class="status"></span></div>\n' +
 '</div>\n' +
-'<div id="err" class="error-box" style="display:none"></div>\n' +
+'<div id="err" class="alert-err" style="display:none"></div>\n' +
 '</div>\n' +
  footerHtml() + '\n' +
 '</div>\n' +

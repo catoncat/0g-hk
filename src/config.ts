@@ -64,8 +64,8 @@ function validate(s, v) {
 }
 
 // Load merged config (defaults + KV overrides). Always returns a fully-populated object.
-export async function loadConfig(env) {
-  const out = { ...CONFIG_DEFAULTS };
+export async function loadConfig(env): Promise<Record<string, any>> {
+  const out: Record<string, any> = { ...CONFIG_DEFAULTS };
   try {
     const raw = env && env.NOTES ? await env.NOTES.get(CFG_KEY) : null;
     if (raw) {
@@ -84,7 +84,7 @@ export async function loadConfig(env) {
 // Save partial config; missing keys keep their current value. Stores only diffs vs default.
 export async function saveConfig(env, partial) {
   const current = await loadConfig(env);
-  const next = { ...current };
+  const next: Record<string, any> = { ...current };
   const errors = {};
   for (const s of CONFIG_SCHEMA) {
     if (s.readOnly) continue;

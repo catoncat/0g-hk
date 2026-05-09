@@ -87,7 +87,7 @@ export function footerHtml() {
     '</p></div>';
 }
 
-export function headerHtml(rightSlot) {
+export function headerHtml(rightSlot?) {
   return '<header class="page-header"><a class="logo" href="https://' + BASE_HOST + '/">0g<span class="dot">.</span>hk</a>' + (rightSlot || '') + '</header>';
 }
 
@@ -160,13 +160,13 @@ export function jsonResponse(obj, status = 200, extra = {}) {
   });
 }
 
-export function jsonError(code, message, status = 400, details) {
-  const body = { ok: false, error: { code, message } };
+export function jsonError(code, message, status = 400, details?) {
+  const body: any = { ok: false, error: { code, message } };
   if (details && typeof details === "object") body.error.details = details;
   return jsonResponse(body, status);
 }
 
-export function replyError(req, url, code, message, status, details) {
+export function replyError(req, url, code, message, status, details?) {
   if (wantsJson(req, url)) return jsonError(code, message, status, details);
   return statusPage({
     status,
@@ -178,9 +178,9 @@ export function replyError(req, url, code, message, status, details) {
 }
 
 // ---- note meta HTTP headers ----
-export function noteMetaHeaders(o) {
+export function noteMetaHeaders(o): Record<string, string> {
   const short = shortUrlFor(o.name);
-  const h = {
+  const h: Record<string, string> = {
     "x-name": o.name,
     "x-short-url": short,
     "x-raw-url": short + "/raw",

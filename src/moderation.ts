@@ -53,7 +53,7 @@ export async function checkSafeBrowsing(env, url) {
       body: JSON.stringify(body),
     });
     if (!r.ok) return { ok: true, reason: "sb-http-" + r.status };
-    const j = await r.json();
+    const j: any = await r.json();
     const matches = Array.isArray(j.matches) ? j.matches : [];
     if (matches.length === 0) return { ok: true };
     return { ok: false, threats: matches.map((m) => m.threatType).filter(Boolean) };
@@ -73,7 +73,7 @@ export async function verifyTurnstile(env, token, ip) {
     form.append("response", token);
     if (ip) form.append("remoteip", ip);
     const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form });
-    const j = await r.json();
+    const j: any = await r.json();
     return { ok: !!j.success, reason: j["error-codes"] && j["error-codes"].join(",") };
   } catch (e) {
     return { ok: true, reason: "ts-error:" + String(e && e.message || e).slice(0, 80) };

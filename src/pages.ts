@@ -5,7 +5,7 @@ import { esc, shortUrlFor, isUrl, parseUrlSafe, isAllowedTarget } from "./util.j
 import { renderMarkdown } from "./markdown.js";
 import { COMMON_CSS, html, footerHtml, headerHtml, promoCardHtml } from "./responses.js";
 
-export function editorPage(opts) {
+export function editorPage(opts?) {
   opts = opts || {};
   const prefillContent = opts.prefillContent || "";
   const prefillName = opts.prefillName || "";

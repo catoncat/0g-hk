@@ -1,0 +1,11 @@
+# 0g.hk apex robots.txt
+# Allow only the homepage and the public docs; block everything else.
+# Subdomains <name>.0g.hk are noindex via x-robots-tag header in the worker.
+
+User-agent: *
+Allow: /$
+Allow: /llms.txt
+Allow: /llms-full.txt
+Disallow: /
+
+Sitemap: https://0g.hk/llms.txt

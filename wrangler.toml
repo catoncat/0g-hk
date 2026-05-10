@@ -13,6 +13,12 @@ id = "5abeab410f7841eeb5b06942a3cfa42b"
 [ai]
 binding = "AI"
 
+# Static assets (llms.txt, llms-full.txt, robots.txt, favicon.svg).
+# Served directly from CF's edge (with ETag) before the Worker runs.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
 [[routes]]
 pattern = "0g.hk"
 zone_name = "0g.hk"

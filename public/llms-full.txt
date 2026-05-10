@@ -1,0 +1,176 @@
+# 0g.hk — full API reference
+
+Minimal, no-login short URL + text note service on 0g.hk.
+API version: 1
+Abuse contact: abuse@0g.hk
+
+This document is the canonical reference for machine clients (LLMs, scripts).
+For a short cheat sheet see /llms.txt.
+
+## Hosts
+
+- 0g.hk           — apex, write API and editor UI
+- <name>.0g.hk    — read API for an existing note (one subdomain per note name)
+
+## Concepts
+
+A note is identified by a `name` matching ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$
+(lowercase letters, digits, hyphen; start and end with alnum).
+The `content` is either:
+- a URL (http/https, length <= 2048 bytes) → read returns 302 redirect, or
+- arbitrary UTF-8 text (length <= 24576 bytes) → read returns the text.
+
+Every successful create returns an `editToken` that must be presented to edit
+or delete the note within its TTL.
+
+## TTL
+
+Accepted values: 1h, 1d, 7d. Default: 7d.
+Notes are removed automatically when their TTL expires.
+
+## Rate limit
+
+Create / edit endpoints are limited to 10 requests per minute per client IP.
+An adaptive limiter further reduces this to 2 req/min/ip after 5 rejected
+requests in a short window.
+
+## Endpoints
+
+### POST/PUT https://0g.hk/
+
+Create a note. Body may be:
+- application/x-www-form-urlencoded with `c` (content), `n` (name), `ttl`, `token`
+- application/json with `{ content, name, ttl, token }`
+- text/plain — raw content; name auto-generated
+
+Response 200 (JSON if Accept: application/json):
+{
+  "ok": true,
+  "name": "demo",
+  "url":  "https://demo.0g.hk/",
+  "editUrl": "https://demo.0g.hk/edit",
+  "editToken": "<32-char hex>",
+  "expiresAt": "2026-01-01T00:00:00Z",
+  "ttl": "7d"
+}
+
+Response 200 (HTML if Accept: text/html): result page with name, short URL,
+edit URL, editToken, copy buttons.
+
+Response 4xx/5xx: see Error codes.
+
+### GET https://0g.hk/
+
+Non-browser (curl etc.) → returns this file's short companion (/llms.txt).
+Browser → returns the editor page. With `?c=`, behaves like POST /.
+
+### GET https://0g.hk/exists?n=<name>
+
+Check whether a name is already taken.
+Response: { "name": "...", "exists": true|false } (always 200).
+
+### GET https://<name>.0g.hk/
+
+Read a note.
+- Browser + URL content: HTML interstitial showing the destination.
+- Browser + text content: HTML rendering of the note (markdown when applicable).
+- curl/JSON + URL content: 302 redirect to target.
+- curl + text content: text/plain body.
+- Accept: application/json: { name, content, contentType, expiresAt }.
+- 404 if not found, 410 if disabled, 451 if abuse-flagged.
+
+### GET https://<name>.0g.hk/raw
+
+Returns the raw note body as text/plain regardless of UA. 404/410/451 as above.
+
+### POST https://<name>.0g.hk/
+
+Edit content. Body must include the `token` returned by create.
+Application/json: { "content": "...", "token": "..." }.
+Response 200: { ok, name, contentType, expiresAt }.
+
+### POST https://<name>.0g.hk/edit
+
+HTML edit form post-back. Body: form-urlencoded { content, token }.
+
+### POST https://<name>.0g.hk/abuse
+
+Report abuse. Body: { reason }. After ABUSE_AUTO_DISABLE (3) reports the note
+is auto-disabled.
+
+## Headers
+
+Every response includes:
+- content-security-policy (strict)
+- x-frame-options: DENY
+- x-content-type-options: nosniff
+- referrer-policy: strict-origin-when-cross-origin
+- permissions-policy: geolocation=(), microphone=(), camera=(), payment=()
+- x-robots-tag: noindex, nofollow
+
+Note read responses additionally include:
+- x-note-name, x-note-content-type ("url" | "text"), x-note-expires-at
+
+## Error codes
+
+All error responses include a JSON body of shape
+{ "error": "<code>", "message": "<human readable>" }
+when Accept includes application/json or ?format=json is set.
+
+400 invalid_request   — malformed body / params
+400 invalid_name      — name fails NAME_RE
+400 invalid_url       — content claims to be a URL but cannot be parsed
+400 bad_scheme        — url scheme is not http/https
+401 invalid_token     — editToken missing or wrong
+403 reserved_name     — name is in RESERVED set
+403 brand_blocked     — name contains a blocked brand substring
+403 shortener_blocked — redirect target is itself a known shortener
+404 not_found         — note does not exist or has expired
+409 name_taken        — name already in use and not expired
+410 gone              — note was disabled
+413 too_large         — text > 24576 bytes or url > 2048 bytes
+429 rate_limited      — over the per-minute create/edit limit
+451 content_blocked   — moderation rejected the content
+500 internal_error    — bug; please report with X-Request-Id if shown
+
+## Reserved names
+
+www api new admin edit raw n app abuse report exists
+mail email dns mx ns cdn static assets help docs status
+
+Plus all RFC 2606 reserved labels (example, invalid, localhost, test).
+
+## Brand blocks
+
+Names containing certain brand substrings (apple, google, paypal, binance,
+openai, ...) are rejected as anti-phishing protection. The full list lives in
+src/constants.ts (BRAND_BLOCK).
+
+## Redirect target rules
+
+When `content` is a URL we additionally enforce:
+- scheme must be http or https
+- host must not be in SHORTENER_HOSTS (chained shorteners are blocked)
+- if the host is on REDIRECT_ALLOWLIST, redirect is direct (302)
+- otherwise the read returns an HTML interstitial showing the destination
+  before the user clicks through
+
+## Quick examples
+
+Create a text note:
+  $ curl -s -X POST https://0g.hk/ -H 'content-type: application/json' \
+      -d '{"content":"hello","name":"hi","ttl":"1d"}'
+  {"ok":true,"name":"hi","url":"https://hi.0g.hk/", ...}
+
+Read it:
+  $ curl -s https://hi.0g.hk/raw
+  hello
+
+Edit it:
+  $ curl -s -X POST https://hi.0g.hk/ -H 'content-type: application/json' \
+      -d '{"content":"hi there","token":"<editToken>"}'
+  {"ok":true,"name":"hi", ...}
+
+Delete (set empty content):
+  $ curl -s -X POST https://hi.0g.hk/ -H 'content-type: application/json' \
+      -d '{"content":"","token":"<editToken>"}'

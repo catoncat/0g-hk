@@ -6,7 +6,7 @@ import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, TEXT_MAX, URL_M
 import { loadConfig } from "./config.js";
 import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName } from "./util.js";
 import { aiModerate, checkSafeBrowsing } from "./moderation.js";
-import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, llmsTextResponse, statusPage, faviconResponse } from "./responses.js";
+import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, statusPage } from "./responses.js";
 import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./pages.js";
 import { handleAdmin } from "./admin.js";
 
@@ -320,17 +320,14 @@ subApp.onError(onError);
 baseApp.get("/exists", (c) => handleExists(c.env, new URL(c.req.url)));
 baseApp.all("/admin", (c) => handleAdmin(c.req.raw, c.env, new URL(c.req.url)));
 baseApp.all("/admin/*", (c) => handleAdmin(c.req.raw, c.env, new URL(c.req.url)));
-baseApp.get("/llms.txt", async (c) => llmsTextResponse(await loadConfig(c.env)));
-baseApp.get("/robots.txt", async (c) => {
-  const u = new URL(c.req.url);
-  if (u.searchParams.has("llms")) return llmsTextResponse(await loadConfig(c.env));
-  return new Response("Not found", { status: 404 });
-});
+// /llms.txt, /llms-full.txt, /robots.txt, /favicon.svg are served from
+// public/ via the [assets] binding before the Worker runs (see wrangler.toml).
 baseApp.on(["POST", "PUT"], "/", (c) => handleCreate(c.req.raw, c.env, new URL(c.req.url)));
 baseApp.get("/", async (c) => {
   const u = new URL(c.req.url);
   if (u.searchParams.has("c")) return handleCreate(c.req.raw, c.env, u);
-  if (!isBrowserRequest(c.req.raw)) return llmsTextResponse(await loadConfig(c.env));
+  // Non-browser clients (curl/LLM agents) get the canonical short docs.
+  if (!isBrowserRequest(c.req.raw)) return c.env.ASSETS.fetch(new URL("/llms.txt", c.req.url));
   return editorPage({
     prefillName: (u.searchParams.get("n") || "").toLowerCase().trim(),
     prefillContent: u.searchParams.get("c") || "",
@@ -357,7 +354,6 @@ export default {
     const url = new URL(req.url);
     const host = url.hostname.toLowerCase();
     if (req.method === "OPTIONS") return corsPreflight();
-    if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") return faviconResponse();
     if (host === BASE_HOST) return baseApp.fetch(req, env);
     if (host.endsWith("." + BASE_HOST)) return subApp.fetch(req, env);
     if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404);

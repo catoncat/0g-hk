@@ -1,5 +1,7 @@
 // 0g.hk Worker — entry + core handlers (create/edit/subdomain/abuse/exists).
 // Presentation, gates, storage, and admin are in sibling modules.
+import { Hono } from "hono";
+import { logger } from "hono/logger";
 import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, TEXT_MAX, URL_MAX, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
 import { loadConfig } from "./config.js";
 import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName } from "./util.js";
@@ -294,28 +296,70 @@ function corsPreflight() {
   return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, POST, PUT, OPTIONS", "access-control-allow-headers": "content-type, accept, authorization", "access-control-max-age": "86400" } });
 }
 
+// --- Hono router (0X0-13) -------------------------------------------------
+// Two apps: baseApp for the apex (0g.hk) and subApp for *.0g.hk. The outer
+// fetch() does host-based dispatch + favicon + CORS preflight to preserve
+// the exact behavior of the previous hand-rolled router.
+
+const baseApp = new Hono<{ Bindings: Env }>();
+const subApp = new Hono<{ Bindings: Env }>();
+
+baseApp.use("*", logger());
+subApp.use("*", logger());
+
+const onError = (err: Error, c: any) => {
+  console.error("unhandled", (err && err.stack) || err);
+  const u = new URL(c.req.url);
+  if (wantsJson(c.req.raw, u)) return jsonError("internal_error", "Internal error", 500);
+  return new Response("Internal error", { status: 500 });
+};
+baseApp.onError(onError);
+subApp.onError(onError);
+
+// --- Base host (0g.hk) ---
+baseApp.get("/exists", (c) => handleExists(c.env, new URL(c.req.url)));
+baseApp.all("/admin", (c) => handleAdmin(c.req.raw, c.env, new URL(c.req.url)));
+baseApp.all("/admin/*", (c) => handleAdmin(c.req.raw, c.env, new URL(c.req.url)));
+baseApp.get("/llms.txt", async (c) => llmsTextResponse(await loadConfig(c.env)));
+baseApp.get("/robots.txt", async (c) => {
+  const u = new URL(c.req.url);
+  if (u.searchParams.has("llms")) return llmsTextResponse(await loadConfig(c.env));
+  return new Response("Not found", { status: 404 });
+});
+baseApp.on(["POST", "PUT"], "/", (c) => handleCreate(c.req.raw, c.env, new URL(c.req.url)));
+baseApp.get("/", async (c) => {
+  const u = new URL(c.req.url);
+  if (u.searchParams.has("c")) return handleCreate(c.req.raw, c.env, u);
+  if (!isBrowserRequest(c.req.raw)) return llmsTextResponse(await loadConfig(c.env));
+  return editorPage({
+    prefillName: (u.searchParams.get("n") || "").toLowerCase().trim(),
+    prefillContent: u.searchParams.get("c") || "",
+  });
+});
+baseApp.notFound((c) => {
+  const u = new URL(c.req.url);
+  if (wantsJson(c.req.raw, u)) return jsonError("not_found", "Not found", 404);
+  return new Response("Not found", { status: 404 });
+});
+
+// --- Subdomain (*.0g.hk) ---
+// Subdomain handling has many interlocked branches (disabled/edit/raw/
+// interstitial/JSON). Delegate to handleSubdomain to keep behavior identical;
+// future issues can split it into per-route handlers.
+subApp.all("*", (c) => {
+  const u = new URL(c.req.url);
+  const host = u.hostname.toLowerCase();
+  return handleSubdomain(c.req.raw, c.env, host, u);
+});
+
 export default {
-  async fetch(req, env) {
+  async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const host = url.hostname.toLowerCase();
     if (req.method === "OPTIONS") return corsPreflight();
-
     if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") return faviconResponse();
-
-    if (host === BASE_HOST) {
-      if (url.pathname === "/exists") return handleExists(env, url);
-      if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) return handleAdmin(req, env, url);
-      if (url.pathname === "/llms.txt" || (url.pathname === "/robots.txt" && url.searchParams.has("llms"))) return llmsTextResponse(await loadConfig(env));
-      if (url.pathname === "/" || url.pathname === "") {
-        if (req.method === "POST" || req.method === "PUT" || url.searchParams.has("c")) return handleCreate(req, env, url);
-        if (req.method === "GET" && !isBrowserRequest(req)) return llmsTextResponse(await loadConfig(env));
-        return editorPage({ prefillName: (url.searchParams.get("n") || "").toLowerCase().trim(), prefillContent: url.searchParams.get("c") || "" });
-      }
-      if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404);
-      return new Response("Not found", { status: 404 });
-    }
-    if (host.endsWith("." + BASE_HOST)) return handleSubdomain(req, env, host, url);
-
+    if (host === BASE_HOST) return baseApp.fetch(req, env);
+    if (host.endsWith("." + BASE_HOST)) return subApp.fetch(req, env);
     if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404);
     return new Response("Not found", { status: 404 });
   },

@@ -92,10 +92,14 @@ export function esc(s) {
 export async function rateLimit(env, ip) {
   const minute = Math.floor(Date.now() / 60000);
   const key = "rl:" + ip + ":" + minute;
-  const cur = parseInt((await env.NOTES.get(key)) || "0", 10) || 0;
-  // Adaptive: if this IP has been rejected too many times recently, tighten its per-minute cap.
   const rejKey = "rej-ip:" + ip;
-  const recentRej = parseInt((await env.NOTES.get(rejKey)) || "0", 10) || 0;
+  const [curRaw, recentRejRaw] = await Promise.all([
+    env.NOTES.get(key),
+    env.NOTES.get(rejKey),
+  ]);
+  const cur = parseInt(curRaw || "0", 10) || 0;
+  // Adaptive: if this IP has been rejected too many times recently, tighten its per-minute cap.
+  const recentRej = parseInt(recentRejRaw || "0", 10) || 0;
   const cap = recentRej >= ADAPTIVE_REJECT_THRESHOLD ? ADAPTIVE_RATE_LIMIT : RATE_LIMIT;
   if (cur >= cap) return false;
   await env.NOTES.put(key, String(cur + 1), { expirationTtl: 70 });

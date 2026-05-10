@@ -91,8 +91,10 @@ async function handleCreate(req, env, url) {
   const createdAtMs = Date.now();
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};
   const meta = JSON.stringify({ v: 1, h: tokenHash, t: ttlKey, ct: createdAtMs });
-  await env.NOTES.put(key, content, putOpts);
-  await env.NOTES.put("m:" + name, meta, putOpts);
+  await Promise.all([
+    env.NOTES.put(key, content, putOpts),
+    env.NOTES.put("m:" + name, meta, putOpts),
+  ]);
 
   const kind = urlMode ? "url" : "text";
   const target = urlMode ? content.trim() : null;
@@ -172,8 +174,10 @@ async function handleEdit(req, env, sub, url) {
 
   const ttlSec = TTL_OPTIONS[ttlKey];
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};
-  await env.NOTES.put("n:" + sub, content, putOpts);
-  await env.NOTES.put("m:" + sub, metaRaw, putOpts);
+  await Promise.all([
+    env.NOTES.put("n:" + sub, content, putOpts),
+    env.NOTES.put("m:" + sub, metaRaw, putOpts),
+  ]);
 
   const kind = urlMode ? "url" : "text";
   const target = urlMode ? content.trim() : null;
@@ -194,18 +198,24 @@ async function handleAbuseReport(req, env, sub, url) {
   const ipTrunc = ip.split(":").slice(0, 4).join(":").split(".").slice(0, 3).join(".");
   const day = new Date().toISOString().slice(0, 10);
   const dedupeKey = "abuse-dedupe:" + sub + ":" + day + ":" + (await sha256Base64Url(ipTrunc)).slice(0, 12);
-  const already = await env.NOTES.get(dedupeKey);
   const counterKey = "abuse:" + sub;
-  let count = parseInt((await env.NOTES.get(counterKey)) || "0", 10) || 0;
+  const [already, counterRaw] = await Promise.all([
+    env.NOTES.get(dedupeKey),
+    env.NOTES.get(counterKey),
+  ]);
+  let count = parseInt(counterRaw || "0", 10) || 0;
   let disabled = false;
   if (!already) {
     count += 1;
-    await env.NOTES.put(counterKey, String(count), { expirationTtl: 30 * 86400 });
-    await env.NOTES.put(dedupeKey, "1", { expirationTtl: 86400 });
+    const puts = [
+      env.NOTES.put(counterKey, String(count), { expirationTtl: 30 * 86400 }),
+      env.NOTES.put(dedupeKey, "1", { expirationTtl: 86400 }),
+    ];
     if (count >= ABUSE_AUTO_DISABLE) {
-      await env.NOTES.put("d:" + sub, JSON.stringify({ reason: "community_reports", count, at: Date.now() }), { expirationTtl: 365 * 86400 });
+      puts.push(env.NOTES.put("d:" + sub, JSON.stringify({ reason: "community_reports", count, at: Date.now() }), { expirationTtl: 365 * 86400 }));
       disabled = true;
     }
+    await Promise.all(puts);
   }
   if (wantsJson(req, url)) return jsonResponse({ ok: true, name: sub, reports: count, disabled, deduped: !!already });
   return statusPage({
@@ -242,8 +252,10 @@ async function handleSubdomain(req, env, host, url) {
   if (url.searchParams.has("edit") || req.method === "POST" || req.method === "PUT") return handleEdit(req, env, sub, url);
 
   if (pathname === "/edit") {
-    const metaRaw = await env.NOTES.get("m:" + sub);
-    const existing = await env.NOTES.get("n:" + sub);
+    const [metaRaw, existing] = await Promise.all([
+      env.NOTES.get("m:" + sub),
+      env.NOTES.get("n:" + sub),
+    ]);
     if (existing === null) {
       if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404, { name: sub });
       return notFoundPage(sub);
@@ -254,13 +266,14 @@ async function handleSubdomain(req, env, host, url) {
     return editNotePage(sub, ttlKey);
   }
 
-  const content = await env.NOTES.get("n:" + sub);
+  const [content, metaRaw] = await Promise.all([
+    env.NOTES.get("n:" + sub),
+    env.NOTES.get("m:" + sub),
+  ]);
   if (content === null) {
     if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404, { name: sub });
     return notFoundPage(sub);
   }
-
-  const metaRaw = await env.NOTES.get("m:" + sub);
   let meta = {};
   try { meta = metaRaw ? JSON.parse(metaRaw) : {}; } catch {}
   const ttlKey = TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL;

@@ -281,8 +281,7 @@ async function handleSubdomain(req, env, host, url) {
   if (urlMode) {
     const parsed = parseUrlSafe(content);
     if (!parsed) return notePage(sub, content);
-    const bypass = url.searchParams.get("go") === "1";
-    if (bypass || isAllowedTarget(target)) {
+    if (isAllowedTarget(target)) {
       return new Response(null, { status: 302, headers: Object.assign({ location: target }, mh) });
     }
     return interstitialPage(sub, target);

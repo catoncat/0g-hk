@@ -1,5 +1,5 @@
 name = "n-chen-rs"
-main = "src/index.js"
+main = "src/index.ts"
 compatibility_date = "2024-12-01"
 account_id = "6087736750ab274809ddad92ed5e3ac6"
 workers_dev = false

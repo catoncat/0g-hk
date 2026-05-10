@@ -248,7 +248,7 @@ async function handleSubdomain(req, env, host, url) {
       if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404, { name: sub });
       return notFoundPage(sub);
     }
-    let meta = {};
+    let meta: any = {};
     try { meta = metaRaw ? JSON.parse(metaRaw) : {}; } catch {}
     const ttlKey = TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL;
     return editNotePage(sub, ttlKey);
@@ -261,7 +261,7 @@ async function handleSubdomain(req, env, host, url) {
   }
 
   const metaRaw = await env.NOTES.get("m:" + sub);
-  let meta = {};
+  let meta: any = {};
   try { meta = metaRaw ? JSON.parse(metaRaw) : {}; } catch {}
   const ttlKey = TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL;
   const createdAtMs = meta.ct || 0;

@@ -1,6 +1,8 @@
-// Response helpers: security headers, html/json responses, CSS theme, footer/promo, llms.txt,
-// note-meta headers, and request body parsing.
-import { BASE_HOST, API_VERSION, TTL_OPTIONS, TEXT_MAX, URL_MAX, RATE_LIMIT, DEFAULT_TTL, ABUSE_EMAIL } from "./constants.js";
+// Response helpers: security headers, html/json responses, CSS theme, footer/promo,
+// note-meta headers, and request body parsing. Static assets (llms.txt,
+// llms-full.txt, robots.txt, favicon.svg) live in /public and are served by
+// Workers Static Assets via the ASSETS binding (see wrangler.toml).
+import { BASE_HOST, ABUSE_EMAIL } from "./constants.js";
 import { shortUrlFor, expiresAtIso, esc } from "./util.js";
 
 // Baseline security headers applied to every HTML response.
@@ -19,28 +21,6 @@ export const SECURITY_HEADERS = {
   "permissions-policy": "geolocation=(), microphone=(), camera=(), payment=()",
   "x-robots-tag": "noindex, nofollow",
 };
-
-// Brand mark: two interlocking chain links (short-link metaphor) with a green dot
-// at the crossing. Stroke color adapts to the tab's color scheme.
-export const FAVICON_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
-  '<style>:root{--fg:#0a0a0a}@media(prefers-color-scheme:dark){:root{--fg:#ededed}}</style>' +
-  '<g fill="none" stroke="var(--fg)" stroke-width="5" stroke-linecap="round">' +
-  '<path d="M8 20V10a6 6 0 0 1 12 0v10"/>' +
-  '<path d="M12 12v10a6 6 0 0 0 12 0V12"/>' +
-  '</g>' +
-  '<circle cx="16" cy="16" r="3" fill="#10b981"/>' +
-  '</svg>';
-
-export function faviconResponse() {
-  return new Response(FAVICON_SVG, {
-    headers: {
-      "content-type": "image/svg+xml",
-      "cache-control": "public, max-age=86400, immutable",
-      "x-content-type-options": "nosniff",
-    },
-  });
-}
 
 export function html(body, status = 200, extraHeaders = {}) {
   return new Response(body, {
@@ -231,64 +211,4 @@ export async function readBody(req) {
   } catch (e) {
     return { ok: false, err: "Failed to parse body: " + String(e && e.message || e) };
   }
-}
-
-// ---- llms.txt ----
-export function llmsText(cfg) {
-  const textMax = (cfg && cfg.textMax) || TEXT_MAX;
-  const urlMax = (cfg && cfg.urlMax) || URL_MAX;
-  const rl = (cfg && cfg.rateLimit) || RATE_LIMIT;
-  const lines = [
-    "# 0g.hk",
-    "",
-    "Minimal, no-login short URL + text note service on " + BASE_HOST + ".",
-    "",
-    "API version: " + API_VERSION,
-    "",
-    "## Create",
-    "",
-    "curl -sS --data-urlencode c='hello world' https://" + BASE_HOST + "/",
-    "",
-    "curl -sS --data-urlencode c='https://example.com' 'https://" + BASE_HOST + "/?n=demo&ttl=7d'",
-    "",
-    "curl -sS -X POST https://" + BASE_HOST + "/ \\",
-    "  -H 'accept: application/json' \\",
-    "  -H 'content-type: application/json' \\",
-    "  -d '{\"content\":\"https://example.com\",\"name\":\"demo\",\"ttl\":\"7d\"}'",
-    "",
-    "## Browser shortcut",
-    "",
-    "https://" + BASE_HOST + "/?c=hello-world&n=demo",
-    "",
-    "## Read",
-    "",
-    "curl https://<name>." + BASE_HOST + "/       # HTML or 302 redirect",
-    "curl https://<name>." + BASE_HOST + "/raw    # raw body",
-    "curl -H 'accept: application/json' https://<name>." + BASE_HOST + "/",
-    "",
-    "## Edit (needs editToken from create)",
-    "",
-    "curl -X POST https://<name>." + BASE_HOST + "/ \\",
-    "  -H 'content-type: application/json' \\",
-    "  -d '{\"content\":\"new-content\",\"token\":\"<editToken>\"}'",
-    "",
-    "## Limits",
-    "",
-    "- name: lowercase letters, numbers, hyphen; start/end with alnum",
-    "- text: " + textMax + " bytes, url: " + urlMax + " bytes",
-    "- ttl: " + Object.keys(TTL_OPTIONS).join(" / ") + " (default " + DEFAULT_TTL + ")",
-    "- rate: create/edit " + rl + " req/min/ip",
-    "- abuse: " + ABUSE_EMAIL,
-  ];
-  return lines.join("\n") + "\n";
-}
-
-export function llmsTextResponse(cfg) {
-  return new Response(llmsText(cfg), {
-    status: 200,
-    headers: {
-      "content-type": "text/plain;charset=utf-8",
-      "cache-control": "public, max-age=300",
-    },
-  });
 }

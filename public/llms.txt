@@ -1,0 +1,42 @@
+# 0g.hk
+
+Minimal, no-login short URL + text note service on 0g.hk.
+
+API version: 1
+
+## Create
+
+curl -sS --data-urlencode c='hello world' https://0g.hk/
+
+curl -sS --data-urlencode c='https://example.com' 'https://0g.hk/?n=demo&ttl=7d'
+
+curl -sS -X POST https://0g.hk/ \
+  -H 'accept: application/json' \
+  -H 'content-type: application/json' \
+  -d '{"content":"https://example.com","name":"demo","ttl":"7d"}'
+
+## Browser shortcut
+
+https://0g.hk/?c=hello-world&n=demo
+
+## Read
+
+curl https://<name>.0g.hk/       # HTML or 302 redirect
+curl https://<name>.0g.hk/raw    # raw body
+curl -H 'accept: application/json' https://<name>.0g.hk/
+
+## Edit (needs editToken from create)
+
+curl -X POST https://<name>.0g.hk/ \
+  -H 'content-type: application/json' \
+  -d '{"content":"new-content","token":"<editToken>"}'
+
+## Limits
+
+- name: lowercase letters, numbers, hyphen; start/end with alnum
+- text: 24576 bytes, url: 2048 bytes
+- ttl: 1h / 1d / 7d (default 7d)
+- rate: create/edit 10 req/min/ip
+- abuse: abuse@0g.hk
+
+For full API reference (return codes, schema, examples) see https://0g.hk/llms-full.txt .

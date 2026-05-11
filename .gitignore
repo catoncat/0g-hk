@@ -2,3 +2,4 @@
 .ml-cache/
 .mainline/local.toml
 node_modules/
+.claude/

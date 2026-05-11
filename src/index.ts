@@ -7,7 +7,7 @@ import { loadConfig } from "./config.js";
 import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName } from "./util.js";
 import { aiModerate, checkSafeBrowsing } from "./moderation.js";
 import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, statusPage } from "./responses.js";
-import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./pages.js";
+import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./views/index.js";
 import { handleAdmin } from "./admin.js";
 
 async function handleExists(env, url) {

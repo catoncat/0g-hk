@@ -27,3 +27,24 @@ custom_domain = true
 [[routes]]
 pattern = "*.0g.hk/*"
 zone_name = "0g.hk"
+
+# Staging environment: deploy with `wrangler deploy --env staging`.
+# Publishes to n-chen-rs-staging.<account>.workers.dev (no custom domain).
+# Uses a dedicated KV namespace (NOTES_STAGING) so prod data is isolated.
+[env.staging]
+name = "n-chen-rs-staging"
+workers_dev = true
+# Override the top-level [[routes]] so staging does NOT try to bind 0g.hk.
+# Without this, wrangler inherits the prod routes and conflicts on deploy.
+routes = []
+
+[[env.staging.kv_namespaces]]
+binding = "NOTES"
+id = "c317652a97c542e9b85ed03bfa24a96f"
+
+[env.staging.ai]
+binding = "AI"
+
+[env.staging.assets]
+directory = "./public"
+binding = "ASSETS"

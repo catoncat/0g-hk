@@ -50,6 +50,41 @@ describe("create + fetch round-trip", () => {
     // Plain-text accept returns the raw stored content; HTML accept renders MD.
     expect(text).toContain("hello vitest");
   });
+
+  it("does not let go=1 bypass the external-link warning", async () => {
+    const unsafeName = `ext${Math.random().toString(36).slice(2, 9)}`;
+    const unsafeCreate = await SELF.fetch(`${APEX}/`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+        "cf-connecting-ip": `198.51.100.${Math.floor(Math.random() * 200) + 1}`,
+      },
+      body: JSON.stringify({ name: unsafeName, content: "https://untrusted.example/path?x=1" }),
+    });
+    expect(unsafeCreate.status, await unsafeCreate.clone().text()).toBe(201);
+
+    const unsafeView = await SELF.fetch(`https://${unsafeName}.0g.hk/?go=1`, { redirect: "manual" });
+    expect(unsafeView.status).not.toBe(302);
+    expect(await unsafeView.text()).toContain("即将离开");
+
+    const safeName = `gh${Math.random().toString(36).slice(2, 9)}`;
+    const safeTarget = "https://github.com/catoncat/0g-hk";
+    const safeCreate = await SELF.fetch(`${APEX}/`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+        "cf-connecting-ip": `203.0.113.${Math.floor(Math.random() * 200) + 1}`,
+      },
+      body: JSON.stringify({ name: safeName, content: safeTarget }),
+    });
+    expect(safeCreate.status, await safeCreate.clone().text()).toBe(201);
+
+    const safeView = await SELF.fetch(`https://${safeName}.0g.hk/`, { redirect: "manual" });
+    expect(safeView.status).toBe(302);
+    expect(safeView.headers.get("location")).toBe(safeTarget);
+  });
 });
 
 describe("static assets (0X0-14)", () => {

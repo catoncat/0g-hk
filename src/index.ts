@@ -200,20 +200,24 @@ async function handleAbuseReport(req, env, sub, url) {
   const ipTrunc = ip.split(":").slice(0, 4).join(":").split(".").slice(0, 3).join(".");
   const day = new Date().toISOString().slice(0, 10);
   const dedupeKey = "abuse-dedupe:" + sub + ":" + day + ":" + (await sha256Base64Url(ipTrunc)).slice(0, 12);
-  const already = await env.NOTES.get(dedupeKey);
   const counterKey = "abuse:" + sub;
-  let count = parseInt((await env.NOTES.get(counterKey)) || "0", 10) || 0;
+  const [already, counterRaw] = await Promise.all([
+    env.NOTES.get(dedupeKey),
+    env.NOTES.get(counterKey),
+  ]);
+  let count = parseInt(counterRaw || "0", 10) || 0;
   let disabled = false;
   if (!already) {
     count += 1;
-    await Promise.all([
+    const puts = [
       env.NOTES.put(counterKey, String(count), { expirationTtl: 30 * 86400 }),
       env.NOTES.put(dedupeKey, "1", { expirationTtl: 86400 }),
-    ]);
+    ];
     if (count >= ABUSE_AUTO_DISABLE) {
-      await env.NOTES.put("d:" + sub, JSON.stringify({ reason: "community_reports", count, at: Date.now() }), { expirationTtl: 365 * 86400 });
+      puts.push(env.NOTES.put("d:" + sub, JSON.stringify({ reason: "community_reports", count, at: Date.now() }), { expirationTtl: 365 * 86400 }));
       disabled = true;
     }
+    await Promise.all(puts);
   }
   if (wantsJson(req, url)) return jsonResponse({ ok: true, name: sub, reports: count, disabled, deduped: !!already });
   return statusPage({
@@ -293,8 +297,7 @@ async function handleSubdomain(req, env, host, url) {
   if (urlMode) {
     const parsed = parseUrlSafe(content);
     if (!parsed) return notePage(sub, content);
-    const bypass = url.searchParams.get("go") === "1";
-    if (bypass || isAllowedTarget(target)) {
+    if (isAllowedTarget(target)) {
       return new Response(null, { status: 302, headers: Object.assign({ location: target }, mh) });
     }
     return interstitialPage(sub, target);

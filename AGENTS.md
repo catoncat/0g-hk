@@ -1,3 +1,15 @@
+# Codex Cloud environment note
+
+When running in the Codex Cloud container for this repository, the `mainline` CLI
+is not installed. In that environment, skip all Mainline commands entirely
+(`mainline status`, `mainline context`, `mainline start`, `mainline append`,
+`mainline seal`, `mainline lint`, etc.) and proceed with the normal git-native
+workflow: inspect the relevant files, make the requested change, run available
+checks, commit, and open a PR. Do not report skipped Mainline commands as test
+warnings in final answers or PR descriptions; treat Mainline as unavailable by
+project policy for Codex Cloud unless a future environment explicitly provides
+the CLI.
+
 <!-- mainline:agents:start version=12 checksum=sha256:62ee66d15a420f45eb3c1403cffe332072b56e14044597a18ddcc71fa14a0d83 -->
 ## Mainline
 

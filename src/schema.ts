@@ -1,4 +1,4 @@
-// @ts-ignore Drizzle is introduced by the D1 schema/migration toolchain.
+// @ts-expect-error Drizzle is provided by the D1 schema/migration toolchain in migration environments.
 import { relations, sql } from "drizzle-orm";
 // @ts-ignore Drizzle is introduced by the D1 schema/migration toolchain.
 import { check, index, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";

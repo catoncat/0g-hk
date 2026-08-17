@@ -63,6 +63,44 @@ export function isUrl(s) {
   return URL_NO_SCHEME_RE.test(t);
 }
 
+// ---------------------------------------------------------------------------
+// Note kind (D4)
+//
+// The url-vs-text decision used to be re-derived from the content at every
+// call site (create, edit, read, admin, result page), which let the same note
+// be classified differently depending on who asked and when. These two helpers
+// are the only derivations: `resolveKind` at write time, `readKind` at read
+// time.
+// ---------------------------------------------------------------------------
+
+/** The persisted `k` field of `m:<name>`. */
+export type NoteKind = "url" | "text";
+
+/**
+ * Write-time authority: classify content that is being stored right now.
+ *
+ * This is exactly today's `isUrl(content)` decision, named once so that the
+ * value written to `m:<name>.k` and the branch taken by the writer cannot
+ * disagree.
+ */
+export function resolveKind(content): NoteKind {
+  return isUrl(content) ? "url" : "text";
+}
+
+/**
+ * Read-time authority: trust the persisted kind, fall back for legacy records.
+ *
+ * `meta.k` is honoured only when it is exactly `"url"` or `"text"`. Guarding on
+ * the two literals — rather than on `meta.k` being truthy — means a corrupt or
+ * unknown value (`"URL"`, `1`, `null`, `{}`) degrades to the pre-fix derivation
+ * instead of selecting an undefined branch. `meta` itself may be anything
+ * `JSON.parse` returned, including `null`, so it is probed defensively.
+ */
+export function readKind(meta, content): NoteKind {
+  if (meta != null && (meta.k === "url" || meta.k === "text")) return meta.k;
+  return resolveKind(content);
+}
+
 export function normalizeUrl(s) {
   const t = String(s || "").trim();
   if (/^https?:\/\//i.test(t)) return t;

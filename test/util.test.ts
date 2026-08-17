@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
-import { ctEq, makeBackground } from "../src/util.js";
+import fc from "fast-check";
+import { ctEq, makeBackground, isUrl, resolveKind, readKind } from "../src/util.js";
+import { arbBoundaryContent, fcParams, RUNS_PURE } from "./arbitraries.js";
 
 describe("ctEq", () => {
   it("returns true for equal strings", () => {
@@ -154,5 +156,139 @@ describe("makeBackground", () => {
       bg.waitUntil("not a promise");
       await expect(bg.settle()).resolves.toBeUndefined();
     });
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// resolveKind / readKind (task 5.1, design.md *Unit Tests*)
+//
+// These two helpers replace five independent `isUrl(content)` derivations, so
+// the properties that matter are:
+//   1. resolveKind IS isUrl, renamed — never a second opinion.
+//   2. readKind honours a persisted k ONLY when it is exactly "url"/"text";
+//      anything else (corrupt, unknown, missing, or a meta that is not even an
+//      object) degrades to resolveKind, i.e. to today's behavior.
+// The corrupt cases are the load-bearing ones: a truthiness check would have
+// accepted "URL" and 1 and produced an undefined branch downstream.
+describe("resolveKind", () => {
+  it("classifies URLs as \"url\"", () => {
+    for (const c of [
+      "https://example.com",
+      "http://example.com/a/b?q=1",
+      "docs.example.com",
+      "example.com:8080/path",
+      "EXAMPLE.COM",
+    ]) {
+      expect(resolveKind(c), c).toBe("url");
+    }
+  });
+
+  it("classifies everything else as \"text\"", () => {
+    for (const c of [
+      "hello world",
+      "just-a-word",
+      "example.com with trailing words",
+      "javascript:alert(1)",
+      "example.com.", // trailing dot fails URL_NO_SCHEME_RE
+      "",
+    ]) {
+      expect(resolveKind(c), JSON.stringify(c)).toBe("text");
+    }
+  });
+
+  it("agrees with isUrl exactly, including on non-string input", () => {
+    for (const c of ["https://a.example", "hi there", "", null, undefined, 0, 123, {}, []] as any[]) {
+      expect(resolveKind(c), JSON.stringify(c)).toBe(isUrl(c) ? "url" : "text");
+    }
+  });
+});
+
+describe("readKind", () => {
+  const meta = (k?: unknown) => (k === undefined ? { v: 1, t: "7d" } : { v: 1, t: "7d", k });
+
+  it("returns the persisted k when it is valid, even against the content", () => {
+    // The persisted kind is authoritative: a note stored as text stays text
+    // even if its current content happens to look like a URL, and vice versa.
+    expect(readKind(meta("url"), "https://example.com")).toBe("url");
+    expect(readKind(meta("text"), "hello world")).toBe("text");
+    expect(readKind(meta("text"), "docs.example.com")).toBe("text");
+    expect(readKind(meta("url"), "hello world")).toBe("url");
+  });
+
+  it("falls back when k is present but corrupt", () => {
+    // Wrong case, wrong type, and null are each rejected by the two-literal
+    // guard, so the note behaves exactly as it did before k existed.
+    for (const bad of ["URL", "Url", "TEXT", "text ", " url", 1, 0, null, true, false, {}, [], ["url"], { k: "url" }] as any[]) {
+      expect(readKind(meta(bad), "https://example.com"), JSON.stringify(bad)).toBe("url");
+      expect(readKind(meta(bad), "hello world"), JSON.stringify(bad)).toBe("text");
+    }
+  });
+
+  it("falls back when k is absent — the legacy record case", () => {
+    expect(readKind(meta(), "https://example.com")).toBe("url");
+    expect(readKind(meta(), "docs.example.com")).toBe("url");
+    expect(readKind(meta(), "hello world")).toBe("text");
+    expect(readKind({}, "hello world")).toBe("text");
+    expect(readKind({ k: undefined } as any, "docs.example.com")).toBe("url");
+  });
+
+  it("falls back when meta is null or undefined", () => {
+    // Callers pass whatever JSON.parse gave them, and a corrupt-meta read
+    // yields null — probing `.k` on it must not throw.
+    expect(readKind(null, "https://example.com")).toBe("url");
+    expect(readKind(null, "hello world")).toBe("text");
+    expect(readKind(undefined, "docs.example.com")).toBe("url");
+    expect(readKind(undefined, "hello world")).toBe("text");
+  });
+
+  it("falls back when meta is not an object at all", () => {
+    for (const shape of ["url", "text", 0, 1, "", true, [], [1, 2], NaN] as any[]) {
+      expect(readKind(shape, "https://example.com"), JSON.stringify(shape)).toBe("url");
+      expect(readKind(shape, "hello world"), JSON.stringify(shape)).toBe("text");
+    }
+  });
+
+  it("the fallback equals isUrl(content) exactly", () => {
+    // Every no-valid-k shape must produce the pre-fix answer for the same
+    // content — this is the 2.21 legacy guarantee stated as an equality.
+    const noKind: any[] = [null, undefined, {}, { k: undefined }, { k: "URL" }, { k: 1 }, { k: null }, "not-an-object"];
+    const contents: any[] = [
+      "https://example.com",
+      "http://a.b/c?d=e",
+      "docs.example.com",
+      "a.co:65535/x",
+      "hello world",
+      "example.com.",
+      "-bad.example.com",
+      "",
+      null,
+      undefined,
+      42,
+    ];
+    for (const m of noKind) {
+      for (const c of contents) {
+        expect(readKind(m, c), `${JSON.stringify(m)} / ${JSON.stringify(c)}`).toBe(isUrl(c) ? "url" : "text");
+      }
+    }
+  });
+
+  it("the fallback equals isUrl(content) across generated boundary content", () => {
+    // arbBoundaryContent straddles URL_NO_SCHEME_RE, which is where a
+    // hand-written table is weakest; the claim is the same equality.
+    fc.assert(
+      fc.property(arbBoundaryContent, ({ content, category }) => {
+        const expected = isUrl(content) ? "url" : "text";
+        expect(resolveKind(content), category).toBe(expected);
+        for (const m of [null, undefined, {}, { k: "URL" }, { k: 1 }, { k: null }] as any[]) {
+          expect(readKind(m, content), `${category} / ${JSON.stringify(m)}`).toBe(expected);
+        }
+        // A valid persisted kind always wins, whichever side of the boundary
+        // the content happens to fall on.
+        expect(readKind({ k: "url" }, content), category).toBe("url");
+        expect(readKind({ k: "text" }, content), category).toBe("text");
+      }),
+      fcParams(RUNS_PURE),
+    );
   });
 });

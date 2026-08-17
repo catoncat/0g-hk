@@ -62,6 +62,16 @@ describe("views", () => {
     expect(await bodyOf(r)).toMatchSnapshot();
   });
 
+  // D3 (2.18): the with-siteKey shape, pinned so the widget markup cannot drift
+  // unnoticed. What matters in this snapshot is the challenges.cloudflare.com
+  // script tag and the cf-turnstile div carrying the right data-sitekey — both
+  // already permitted by SECURITY_HEADERS' CSP, so no CSP line should appear.
+  // The no-key case above must stay free of any `cf-turnstile` string.
+  it("interstitialPage — with a Turnstile site key", async () => {
+    const r = interstitialPage("demo", "https://untrusted.example/path?x=1", "0x4AAAAAAADemoSiteKey");
+    expect(await bodyOf(r)).toMatchSnapshot();
+  });
+
   it("editNotePage", async () => {
     const r = editNotePage("demo", "7d");
     expect(await bodyOf(r)).toMatchSnapshot();

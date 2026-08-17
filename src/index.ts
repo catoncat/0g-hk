@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
 import { loadConfig } from "./config.js";
-import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName } from "./util.js";
+import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName, makeBackground, type Background } from "./util.js";
 import { aiModerate, checkSafeBrowsing } from "./moderation.js";
 import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, statusPage } from "./responses.js";
 import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./views/index.js";
@@ -329,16 +329,42 @@ const onError = (err: Error, c: any) => {
 baseApp.onError(onError);
 subApp.onError(onError);
 
+// --- Background work plumbing (D2) ---------------------------------------
+// hono's `c.executionCtx` getter THROWS ("This context has no
+// ExecutionContext") when the context was built without one — it does not
+// return undefined — so every access has to be guarded.
+function safeExecutionCtx(c: any) {
+  try {
+    return c.executionCtx;
+  } catch {
+    return null;
+  }
+}
+
+// The single choke point for every route that records telemetry: build the
+// Background facade from whatever the platform gave us and settle it in a
+// `finally`, so queued work is awaited even when the handler throws into
+// onError. With a real ExecutionContext settle() is a no-op and the response is
+// never delayed; without one the queued writes are awaited before returning.
+async function withBackground(c: any, run: (bg: Background) => Promise<Response>): Promise<Response> {
+  const bg = makeBackground(safeExecutionCtx(c));
+  try {
+    return await run(bg);
+  } finally {
+    await bg.settle();
+  }
+}
+
 // --- Base host (0g.hk) ---
 baseApp.get("/exists", (c) => handleExists(c.env, new URL(c.req.url)));
 baseApp.all("/admin", (c) => handleAdmin(c.req.raw, c.env, new URL(c.req.url)));
 baseApp.all("/admin/*", (c) => handleAdmin(c.req.raw, c.env, new URL(c.req.url)));
 // /llms.txt, /llms-full.txt, /robots.txt, /favicon.svg are served from
 // public/ via the [assets] binding before the Worker runs (see wrangler.toml).
-baseApp.on(["POST", "PUT"], "/", (c) => handleCreate(c.req.raw, c.env, new URL(c.req.url)));
+baseApp.on(["POST", "PUT"], "/", (c) => withBackground(c, () => handleCreate(c.req.raw, c.env, new URL(c.req.url))));
 baseApp.get("/", async (c) => {
   const u = new URL(c.req.url);
-  if (u.searchParams.has("c")) return handleCreate(c.req.raw, c.env, u);
+  if (u.searchParams.has("c")) return withBackground(c, () => handleCreate(c.req.raw, c.env, u));
   // Non-browser clients (curl/LLM agents) get the canonical short docs.
   if (!isBrowserRequest(c.req.raw)) return c.env.ASSETS.fetch(new URL("/llms.txt", c.req.url));
   return editorPage({
@@ -359,16 +385,20 @@ baseApp.notFound((c) => {
 subApp.all("*", (c) => {
   const u = new URL(c.req.url);
   const host = u.hostname.toLowerCase();
-  return handleSubdomain(c.req.raw, c.env, host, u);
+  return withBackground(c, () => handleSubdomain(c.req.raw, c.env, host, u));
 });
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  // `ctx` is annotated deliberately: under `strict: false` an explicit
+  // annotation on the new parameter is the only compiler-level check that it is
+  // accepted and forwarded. Forwarding it to app.fetch is what makes
+  // `c.executionCtx` (and therefore waitUntil) usable at all.
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     const host = url.hostname.toLowerCase();
     if (req.method === "OPTIONS") return corsPreflight();
-    if (host === BASE_HOST) return baseApp.fetch(req, env);
-    if (host.endsWith("." + BASE_HOST)) return subApp.fetch(req, env);
+    if (host === BASE_HOST) return baseApp.fetch(req, env, ctx);
+    if (host.endsWith("." + BASE_HOST)) return subApp.fetch(req, env, ctx);
     if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404);
     return new Response("Not found", { status: 404 });
   },

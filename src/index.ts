@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
 import { loadConfig } from "./config.js";
-import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, resolveKind, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName, makeBackground, type Background } from "./util.js";
+import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, resolveKind, readKind, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName, makeBackground, type Background } from "./util.js";
 import { aiModerate, checkSafeBrowsing } from "./moderation.js";
 import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, statusPage } from "./responses.js";
 import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./views/index.js";
@@ -131,9 +131,13 @@ async function handleEdit(req, env, sub, url, bg: Background) {
   const renewFlag = bp.renew != null || url.searchParams.has("renew");
   if (!token) return replyError(req, url, "missing_token", "Missing edit token", 400);
 
-  let urlMode = false;
+  // Write-time authority, but only for a request that actually supplies content
+  // (D4, 2.23). `kind` stays null here for a TTL-only / renew-only edit and is
+  // filled in below from the STORED kind, so exactly one value drives the gates,
+  // the persisted `k`, the JSON `kind` and the `x-kind` header (2.24).
+  let kind = contentIn ? resolveKind(contentIn) : null;
+  let urlMode = kind === "url";
   if (contentIn) {
-    urlMode = isUrl(contentIn);
     if (urlMode) contentIn = normalizeUrl(contentIn);
     const cfg = await loadConfig(env);
     if (urlMode && contentIn.length > cfg.urlMax) return replyError(req, url, "url_too_long", "URL too long", 413, { maxLength: cfg.urlMax });
@@ -146,17 +150,32 @@ async function handleEdit(req, env, sub, url, bg: Background) {
 
   const metaRawOrig = await env.NOTES.get("m:" + sub);
   if (!metaRawOrig) return replyError(req, url, "not_editable", "Not editable", 403);
-  let meta;
-  try { meta = JSON.parse(metaRawOrig); } catch { return replyError(req, url, "corrupt_meta", "Corrupt meta", 500); }
+  // Parsed ONCE (the `ct` comparison used to re-parse the same bytes further
+  // down). `origMeta` holds what is stored, `meta` is the mutable copy that gets
+  // written back, so the rewrite guard below can compare the two field by field.
+  let origMeta;
+  try { origMeta = JSON.parse(metaRawOrig); } catch { return replyError(req, url, "corrupt_meta", "Corrupt meta", 500); }
   const tokenHash = await sha256Base64Url(token);
-  if (!ctEq(tokenHash, meta.h || "")) return replyError(req, url, "invalid_token", "Invalid edit token", 403);
+  if (!ctEq(tokenHash, origMeta.h || "")) return replyError(req, url, "invalid_token", "Invalid edit token", 403);
+  const meta = { ...origMeta };
 
   let content = contentIn;
-  if (!content) {
+  if (content) {
+    // An explicit content rewrite is the ONLY way a note's kind changes, and it
+    // is now recorded instead of re-derived on every read (2.23).
+    meta.k = kind;
+  } else {
     const existing = await env.NOTES.get("n:" + sub);
     if (existing == null) return replyError(req, url, "not_found", "Not found", 404);
     content = existing;
-    urlMode = isUrl(content);
+    // TTL-only / renew-only edit: report the STORED kind (with the legacy
+    // isUrl fallback for records written before `k` existed) and leave `meta.k`
+    // exactly as it was, including absent (2.22). Backfilling it here was
+    // considered and rejected in design.md — the value would equal the fallback
+    // anyway, but `k` would then change during an operation that supplies no
+    // content, and the 7-day maximum TTL already bounds the fallback window.
+    kind = readKind(origMeta, content);
+    urlMode = kind === "url";
   }
 
   if (contentIn) {
@@ -177,12 +196,13 @@ async function handleEdit(req, env, sub, url, bg: Background) {
 
   const newTtlRaw = (bp.ttl || url.searchParams.get("ttl") || "").toLowerCase();
   if (newTtlRaw && !(newTtlRaw in TTL_OPTIONS)) return replyError(req, url, "invalid_ttl", "Invalid ttl (use " + Object.keys(TTL_OPTIONS).join("/") + ")", 400, { allowed: Object.keys(TTL_OPTIONS) });
-  const ttlKey = newTtlRaw || (TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL);
-  const origTtl = meta.t;
+  const ttlKey = newTtlRaw || (TTL_OPTIONS[origMeta.t] !== undefined ? origMeta.t : DEFAULT_TTL);
   meta.t = ttlKey;
   meta.ct = meta.ct || Date.now();
   if (renewFlag || newTtlRaw || contentIn) meta.ct = Date.now();
-  const metaRaw = (ttlKey !== origTtl || meta.ct !== (JSON.parse(metaRawOrig).ct || 0)) ? JSON.stringify(meta) : metaRawOrig;
+  // Reuse the original bytes only when nothing we persist actually moved. `k`
+  // joins the comparison so a newly-recorded kind is never dropped by this path.
+  const metaRaw = (ttlKey !== origMeta.t || meta.ct !== origMeta.ct || meta.k !== origMeta.k) ? JSON.stringify(meta) : metaRawOrig;
 
   const ttlSec = TTL_OPTIONS[ttlKey];
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};
@@ -191,7 +211,6 @@ async function handleEdit(req, env, sub, url, bg: Background) {
     env.NOTES.put("m:" + sub, metaRaw, putOpts),
   ]);
 
-  const kind = urlMode ? "url" : "text";
   const target = urlMode ? content.trim() : null;
   const createdAtMs = meta.ct || Date.now();
   const mh = noteMetaHeaders({ name: sub, ttlKey, createdAtMs, kind, target });

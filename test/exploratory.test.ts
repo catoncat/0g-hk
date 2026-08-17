@@ -29,9 +29,17 @@
 // now, green after the fix, zero edits. The loud describe-block names below
 // carry the "expected to fail" signal instead.
 //
-// EXPECTED STATE TODAY (unfixed): all cases fail EXCEPT case 3, whose defect is
-// timing-dependent (see its comment) and which may pass without refuting
-// anything.
+// EXPECTED STATE WHEN THIS FILE WAS WRITTEN (unfixed): every case fails, except
+// that case 3's failure was timing-dependent and a pass there would have
+// refuted nothing.
+//
+// STATUS AFTER D2 LANDED (tasks 4.1–4.4): cases 3 and 4 pass; cases 1, 2 (D1)
+// and 5, 6 (D3) and 7, 8 (D4) still fail, as intended, until tasks 5 and 6.
+// Case 3 no longer carries the "INCONCLUSIVE ON PASS" label: task 4.4 changed
+// its assertion MECHANISM (not its strength) to a deterministic
+// `waitOnExecutionContext` drain, so it is now a real check rather than a
+// coin-flip — see its comment for the full reasoning. That is the ONLY case in
+// this file whose text has changed since it was recorded.
 //
 // DEVIATION FROM design.md — DOCUMENTED PLAN vs REALITY
 // ----------------------------------------------------
@@ -68,7 +76,7 @@
 // because tasks 4.4 and 6.11 need the same primitive.
 import { SELF, env, createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
-import { captureLogs, expectRedactedLogPresent, nextIp, workerWithLogCapture } from "./helpers.js";
+import { captureLogs, expectRedactedLogPresent, fetchDrained, nextIp, workerWithLogCapture } from "./helpers.js";
 
 const APEX = "https://0g.hk";
 
@@ -87,6 +95,19 @@ async function createJson(body: Record<string, any>, ip: string = nextIp(), extr
     headers: jsonHeaders(ip, extra),
     body: JSON.stringify(body),
     redirect: "manual",
+  });
+}
+
+/**
+ * The same create, issued through the direct-worker path with a deterministic
+ * drain of `waitUntil` work (see `fetchDrained` in test/helpers.ts). Used by
+ * case 3, whose claim is about a counter written in the background.
+ */
+async function createJsonDrained(body: Record<string, any>, ip: string): Promise<Response> {
+  return fetchDrained(`${APEX}/`, {
+    method: "POST",
+    headers: jsonHeaders(ip),
+    body: JSON.stringify(body),
   });
 }
 
@@ -207,22 +228,39 @@ describe("EXPLORATORY (expected to FAIL until task 6 lands) — D1: token confid
 describe("EXPLORATORY (expected to FAIL until task 4 lands) — D2: rejection telemetry", () => {
   // Case 3 — bugfix.md 1.5, expected behavior 2.9.
   //
-  // *** A PASS HERE IS INCONCLUSIVE, NOT A REFUTATION. ***
-  // `recordReject` is a floating promise. Whether its KV writes complete is
-  // pure timing: if the test's own `await` happens to let the microtask chain
-  // settle before the assertion runs, the counters are correct even on the
-  // unfixed code. Production reclaims the isolate after the response and the
-  // writes are lost, which is the actual defect. Case 4 is the authoritative
-  // D2 signal; this case only records the observation.
+  // MECHANISM CHANGED IN TASK 4.4 — ASSERTION STRENGTH UNCHANGED.
+  //
+  // As originally written this case drove its request through `SELF.fetch` and
+  // read the counter immediately after `await res.json()`. Pre-fix that made a
+  // PASS inconclusive (the floating promise might happen to settle in time).
+  // Post-fix it made a PASS IMPOSSIBLE, for the opposite reason: `bg.waitUntil`
+  // now lands the telemetry write AFTER the response, which is exactly what
+  // requirement 2.8 demands. Observed at that point: `before=0 immediate=0
+  // delayed=1` — the write is not lost, merely not yet landed. Reading the
+  // counter straight after the response therefore asserted a TIMING GUARANTEE
+  // ("the write completed before the response") that 2.8 forbids, so the case
+  // could never go green no matter how correct the fix was.
+  //
+  // The repair is the assertion MECHANISM only: the request now goes through
+  // the direct-worker path (the same one case 1 uses via
+  // `workerWithLogCapture()`), with `createExecutionContext()` +
+  // `waitOnExecutionContext(ctx)`. That drain is DETERMINISTIC — it resolves
+  // once every `waitUntil`-queued promise has settled — so no polling, sleep,
+  // or timing tolerance is involved. The claim is still the exact one from
+  // 2.9: `rej:<day>:<code>` advanced by EXACTLY 1 and `rej-ip:<ip>` is EXACTLY
+  // 1. Nothing was relaxed to ">= 1", and no retry loop was added.
+  //
+  // Case 4 remains the authoritative end-to-end D2 signal (it observes the
+  // consequence — the adaptive cap — through SELF with no drain at all).
   //
   // Gate substituted per the file header: shortener_blocked, not bad_scheme.
-  it("case 3 (INCONCLUSIVE ON PASS): one rejection increments rej:<day>:<code> and rej-ip:<ip> exactly once", async () => {
+  it("case 3: one rejection increments rej:<day>:<code> and rej-ip:<ip> exactly once", async () => {
     const ip = nextIp();
     const code = "shortener_blocked";
     const key = `rej:${dayKey()}:${code}`;
     const before = await kvNum(key);
 
-    const res = await createJson({ content: "https://bit.ly/abc" }, ip);
+    const res = await createJsonDrained({ content: "https://bit.ly/abc" }, ip);
     const j: any = await res.json();
     expect({ status: res.status, code: j?.error?.code }).toEqual({ status: 400, code });
 

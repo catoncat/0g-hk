@@ -9,7 +9,7 @@
 //
 // These are consumed by test/preservation.test.ts (task 1) and by the
 // exploratory / fix-checking suites in later tasks.
-import { SELF } from "cloudflare:test";
+import { SELF, env, createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
 import { vi, expect } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -45,16 +45,20 @@ function fmtArg(a: unknown): string {
  */
 export function captureLogs(): LogCapture {
   const lines: string[] = [];
+  const sink = (...args: unknown[]): void => {
+    lines.push(args.map(fmtArg).join(" "));
+  };
   const methods = ["log", "error", "warn", "info"] as const;
-  const spies = methods.map((m) =>
-    vi.spyOn(console, m).mockImplementation((...args: unknown[]) => {
-      lines.push(args.map(fmtArg).join(" "));
-    }),
-  );
+  const spies = methods.map((m) => vi.spyOn(console, m).mockImplementation(sink));
+  // Also register the sink for the log trampoline below, which is what hono's
+  // logger() ends up calling in the log-observable Worker instance. Without
+  // this the trampoline has no spy to forward to (see installLogTrampoline).
+  activeLogSink = sink;
   return {
     lines,
     text: () => lines.join("\n"),
     restore: () => {
+      if (activeLogSink === sink) activeLogSink = null;
       for (const s of spies) s.mockRestore();
     },
   };
@@ -119,16 +123,27 @@ export interface WorkerModule {
 
 let trampolineInstalled = false;
 let logCaptureWorker: Promise<WorkerModule> | null = null;
+/** Set by captureLogs() for as long as its capture window is open. */
+let activeLogSink: ((...args: unknown[]) => void) | null = null;
 
+// NOTE (task 4.4): this used to decide where to forward by comparing
+// `console.log === trampoline`, which looked equivalent but was not. Node's
+// `console.log` is served by an accessor that hands back a *fresh bound
+// wrapper*, so the comparison was ALWAYS false and, with no spy installed, the
+// trampoline forwarded to itself — `RangeError: Maximum call stack size
+// exceeded` on the first log line emitted outside a capture window. Case 1
+// never hit it because it always logs with a spy installed; task 4.4's
+// direct-worker calls log without one. The sink variable removes the identity
+// test entirely.
 function installLogTrampoline(): void {
   if (trampolineInstalled) return;
   trampolineInstalled = true;
   const boundReal = console.log.bind(console);
   const trampoline = (...args: unknown[]): void => {
-    // No spy installed -> behave exactly like console.log.
-    // Spy installed  -> route through it, so captureLogs() sees the line.
-    if (console.log === (trampoline as any)) boundReal(...args);
-    else (console.log as any)(...args);
+    // Capture window open -> route to its sink, so captureLogs() sees the line.
+    // Otherwise            -> behave exactly like console.log.
+    if (activeLogSink) activeLogSink(...args);
+    else boundReal(...args);
   };
   console.log = trampoline as any;
 }
@@ -146,6 +161,43 @@ export function workerWithLogCapture(): Promise<WorkerModule> {
     logCaptureWorker = import("../src/index.js?logspy=1").then((m: any) => m.default as WorkerModule);
   }
   return logCaptureWorker;
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic draining of background (waitUntil) work — added in task 4.4
+// ---------------------------------------------------------------------------
+//
+// Once D2 (task 4.3) routes every `recordReject` through `bg.waitUntil`, a
+// telemetry write deliberately lands AFTER the response — that is requirement
+// 2.8 ("the response is not blocked"). `SELF.fetch` therefore gives a test no
+// point at which the write is guaranteed to have completed: reading a `rej:`
+// counter straight after `await res.json()` observes 0, and the only ways to
+// make it observable through SELF are polling, sleeping, or relaxing the
+// assertion — all of which trade an exact claim for a timing tolerance.
+//
+// The direct-worker path has a deterministic drain instead:
+// `waitOnExecutionContext(ctx)` resolves once every promise passed to that
+// context's `waitUntil` has settled. So the assertion stays exact ("advanced by
+// EXACTLY 1") while the production code keeps its non-blocking behavior.
+//
+// The worker instance comes from `workerWithLogCapture()` (see above): it
+// shares `env` with SELF, so KV state seeded either way is visible to both.
+
+/**
+ * Issue one request against the Worker directly and drain its background work
+ * before returning, so `waitUntil`-queued KV writes are guaranteed to have
+ * completed when the caller inspects `env.NOTES`.
+ *
+ * Use this for any assertion that reads a counter written by `recordReject`.
+ * `envOverride` lets a test hand the Worker a doctored binding set (used to
+ * prove a failing telemetry write cannot break the response).
+ */
+export async function fetchDrained(input: string, init: RequestInit = {}, envOverride?: any): Promise<Response> {
+  const worker = await workerWithLogCapture();
+  const ctx = createExecutionContext();
+  const res = await worker.fetch(new Request(input, init as any), envOverride ?? env, ctx);
+  await waitOnExecutionContext(ctx);
+  return res;
 }
 
 // ---------------------------------------------------------------------------

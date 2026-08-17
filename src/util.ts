@@ -121,6 +121,57 @@ export async function recordReject(env, code, ip) {
   } catch {}
 }
 
+// ---------------------------------------------------------------------------
+// Background work (D2)
+// ---------------------------------------------------------------------------
+
+/**
+ * A tiny facade over the platform's `ExecutionContext.waitUntil`, handed to the
+ * write handlers so telemetry writes (`recordReject`) survive the response.
+ *
+ * `waitUntil(p)` registers background work; `settle()` resolves once every
+ * promise this facade is still responsible for has finished. With a real
+ * ExecutionContext the runtime owns the promises and `settle()` resolves
+ * immediately; without one it owns them itself and `settle()` awaits them.
+ */
+export interface Background {
+  waitUntil(p: unknown): void;
+  settle(): Promise<void>;
+}
+
+/**
+ * Build a Background facade.
+ *
+ * `exeCtx.waitUntil` is used when the platform supplied one. It is not
+ * guaranteed to exist: hono's `c.executionCtx` getter throws when the context
+ * was built without one, and unit-style tests call handlers directly. In that
+ * case the work is queued and awaited by `settle()` instead, so the write still
+ * completes before the response is handed back — a few milliseconds in tests,
+ * and never in production.
+ *
+ * Every queued promise is wrapped in `.catch(ignore)`, so a failing telemetry
+ * write can neither reject out of `settle()` nor surface as an unhandled
+ * rejection.
+ */
+export function makeBackground(exeCtx): Background {
+  const pending: Promise<void>[] = [];
+  const hasCtx = exeCtx != null && typeof exeCtx.waitUntil === "function";
+  return {
+    waitUntil(p) {
+      const q = Promise.resolve(p).then(
+        () => {},
+        () => {},
+      );
+      if (hasCtx) exeCtx.waitUntil(q);
+      else pending.push(q);
+    },
+    async settle() {
+      if (!pending.length) return;
+      await Promise.all(pending.splice(0));
+    },
+  };
+}
+
 export function shortUrlFor(name) {
   return "https://" + name + "." + BASE_HOST;
 }

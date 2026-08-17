@@ -2,10 +2,10 @@
 // Presentation, gates, storage, and admin are in sibling modules.
 import { Hono } from "hono";
 import { logger } from "hono/logger";
-import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
+import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, RATE_LIMIT, API_VERSION, ABUSE_AUTO_QUARANTINE, ABUSE_GROUP_TTL_SEC, QUARANTINE_MAX_TTL_SEC, QUARANTINE_MIN_TTL_SEC, ABUSE_EMAIL } from "./constants.js";
 import { loadConfig } from "./config.js";
-import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName } from "./util.js";
-import { aiModerate, checkSafeBrowsing } from "./moderation.js";
+import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, esc, resolveKind, readKind, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, redactLogLine, reporterGroup, shortUrlFor, expiresAtIso, normalizeName, makeBackground, type Background } from "./util.js";
+import { aiModerate, checkSafeBrowsing, verifyTurnstile } from "./moderation.js";
 import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, statusPage } from "./responses.js";
 import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./views/index.js";
 import { handleAdmin } from "./admin.js";
@@ -21,7 +21,10 @@ async function handleExists(env, url) {
   return jsonResponse({ valid: true, exists: existing !== null });
 }
 
-async function handleCreate(req, env, url) {
+// `bg` is annotated deliberately: under `strict: false` every other parameter is
+// implicitly `any`, so an explicit annotation on the new one is the only
+// compiler-level check that every call site actually passes it.
+async function handleCreate(req, env, url, bg: Background) {
   const bodyRes = await readBody(req);
   if (!bodyRes.ok) return replyError(req, url, "bad_body", bodyRes.err, 400);
   const bp = bodyRes.body || {};
@@ -33,7 +36,12 @@ async function handleCreate(req, env, url) {
     return editorPage();
   }
 
-  const urlMode = isUrl(rawContent);
+  // Write-time authority for the url-vs-text decision (D4). Everything below —
+  // the length limit chosen, the gates run, the persisted `k`, the JSON `kind`
+  // and the `x-kind` header — derives from this single value, so the branch
+  // taken and the branch recorded cannot disagree.
+  const kind = resolveKind(rawContent);
+  const urlMode = kind === "url";
   const content = urlMode ? normalizeUrl(rawContent) : rawContent;
   const cfg = await loadConfig(env);
   if (urlMode && content.length > cfg.urlMax) return replyError(req, url, "url_too_long", "URL too long (max " + cfg.urlMax + ")", 413, { maxLength: cfg.urlMax });
@@ -54,23 +62,23 @@ async function handleCreate(req, env, url) {
 
   if (name) {
     const brand = isBrandSquatting(name);
-    if (brand) { recordReject(env, "brand_blocked", ip); return replyError(req, url, "brand_blocked", "Name contains a restricted brand/phishing term (" + brand + ")", 400, { term: brand }); }
+    if (brand) { bg.waitUntil(recordReject(env, "brand_blocked", ip)); return replyError(req, url, "brand_blocked", "Name contains a restricted brand/phishing term (" + brand + ")", 400, { term: brand }); }
   }
 
   if (urlMode) {
-    if (hasDangerousScheme(content)) { recordReject(env, "bad_scheme", ip); return replyError(req, url, "bad_scheme", "Dangerous URL scheme", 400); }
+    if (hasDangerousScheme(content)) { bg.waitUntil(recordReject(env, "bad_scheme", ip)); return replyError(req, url, "bad_scheme", "Dangerous URL scheme", 400); }
     const parsed = parseUrlSafe(content);
     if (parsed) {
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") { recordReject(env, "bad_scheme", ip); return replyError(req, url, "bad_scheme", "Only http/https URLs are allowed", 400, { scheme: parsed.protocol }); }
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") { bg.waitUntil(recordReject(env, "bad_scheme", ip)); return replyError(req, url, "bad_scheme", "Only http/https URLs are allowed", 400, { scheme: parsed.protocol }); }
       const blockedHost = isBlockedTargetHost(parsed.hostname);
-      if (blockedHost) { recordReject(env, "shortener_blocked", ip); return replyError(req, url, "shortener_blocked", "Chaining URL shorteners is not allowed (" + blockedHost + ")", 400, { host: blockedHost }); }
+      if (blockedHost) { bg.waitUntil(recordReject(env, "shortener_blocked", ip)); return replyError(req, url, "shortener_blocked", "Chaining URL shorteners is not allowed (" + blockedHost + ")", 400, { host: blockedHost }); }
     }
     const sb = await checkSafeBrowsing(env, content);
-    if (!sb.ok && sb.threats) { recordReject(env, "unsafe_target", ip); return replyError(req, url, "unsafe_target", "Target URL flagged unsafe", 400, { threats: sb.threats }); }
+    if (!sb.ok && sb.threats) { bg.waitUntil(recordReject(env, "unsafe_target", ip)); return replyError(req, url, "unsafe_target", "Target URL flagged unsafe", 400, { threats: sb.threats }); }
   }
 
   const mod = await aiModerate(env, urlMode ? "url" : "text", content, name);
-  if (!mod.ok) { recordReject(env, "content_blocked", ip); return replyError(req, url, "content_blocked", "Content classified as abusive by moderation", 400, { label: mod.label || "other", reason: mod.reason }); }
+  if (!mod.ok) { bg.waitUntil(recordReject(env, "content_blocked", ip)); return replyError(req, url, "content_blocked", "Content classified as abusive by moderation", 400, { label: mod.label || "other", reason: mod.reason }); }
 
   if (!name) {
     for (let i = 0; i < 6; i++) {
@@ -92,13 +100,15 @@ async function handleCreate(req, env, url) {
   const tokenHash = await sha256Base64Url(token);
   const createdAtMs = Date.now();
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};
-  const meta = JSON.stringify({ v: 1, h: tokenHash, t: ttlKey, ct: createdAtMs });
+  // `v` stays 1: nothing in the codebase reads `meta.v`, and the feature
+  // detection the read path needs is *presence of `k`* (see `readKind`), so a
+  // version bump would add a predicate with no reader.
+  const meta = JSON.stringify({ v: 1, h: tokenHash, t: ttlKey, ct: createdAtMs, k: kind });
   await Promise.all([
     env.NOTES.put(key, content, putOpts),
     env.NOTES.put("m:" + name, meta, putOpts),
   ]);
 
-  const kind = urlMode ? "url" : "text";
   const target = urlMode ? content.trim() : null;
   const mh = noteMetaHeaders({ name, ttlKey, createdAtMs, kind, target, editToken: token });
 
@@ -106,24 +116,36 @@ async function handleCreate(req, env, url) {
     return jsonResponse({ ok: true, apiVersion: API_VERSION, name, kind, shortUrl: shortUrlFor(name), rawUrl: shortUrlFor(name) + "/raw", editToken: token, editUrl: shortUrlFor(name) + "/edit#t=" + token, ttl: ttlKey, createdAt: new Date(createdAtMs).toISOString(), expiresAt: expiresAtIso(ttlKey, createdAtMs), target, contentLength: content.length }, 201, mh);
   }
 
-  const r = resultPage(name, content, "created", ttlKey, token);
+  const r = resultPage(name, content, "created", ttlKey, token, kind);
   for (const k in mh) r.headers.set(k, mh[k]);
   return r;
 }
 
-async function handleEdit(req, env, sub, url) {
+async function handleEdit(req, env, sub, url, bg: Background) {
   const bodyRes = await readBody(req);
   if (!bodyRes.ok) return replyError(req, url, "bad_body", bodyRes.err, 400);
   const bp = bodyRes.body || {};
 
-  const token = bp.token || url.searchParams.get("edit") || "";
+  // D1 (1.4, 2.3, 2.4): three accepted transports, one validation. The order is
+  // BODY FIRST, deliberately — it means every request shape that exists today
+  // resolves to exactly the token it resolves to now, so preservation is
+  // observed rather than argued. (design.md rejects the more idiomatic
+  // header-first order for one reason: it would change the outcome of a request
+  // carrying both a body token and a DIFFERENT header token, an input that sits
+  // outside every bug condition.) `?edit=` stays last and stays supported: it is
+  // deprecated, not removed, and it is now redacted from logs like the others.
+  const token = bp.token || req.headers.get("x-edit-token") || url.searchParams.get("edit") || "";
   let contentIn = bp.content || url.searchParams.get("c") || "";
   const renewFlag = bp.renew != null || url.searchParams.has("renew");
   if (!token) return replyError(req, url, "missing_token", "Missing edit token", 400);
 
-  let urlMode = false;
+  // Write-time authority, but only for a request that actually supplies content
+  // (D4, 2.23). `kind` stays null here for a TTL-only / renew-only edit and is
+  // filled in below from the STORED kind, so exactly one value drives the gates,
+  // the persisted `k`, the JSON `kind` and the `x-kind` header (2.24).
+  let kind = contentIn ? resolveKind(contentIn) : null;
+  let urlMode = kind === "url";
   if (contentIn) {
-    urlMode = isUrl(contentIn);
     if (urlMode) contentIn = normalizeUrl(contentIn);
     const cfg = await loadConfig(env);
     if (urlMode && contentIn.length > cfg.urlMax) return replyError(req, url, "url_too_long", "URL too long", 413, { maxLength: cfg.urlMax });
@@ -136,43 +158,59 @@ async function handleEdit(req, env, sub, url) {
 
   const metaRawOrig = await env.NOTES.get("m:" + sub);
   if (!metaRawOrig) return replyError(req, url, "not_editable", "Not editable", 403);
-  let meta;
-  try { meta = JSON.parse(metaRawOrig); } catch { return replyError(req, url, "corrupt_meta", "Corrupt meta", 500); }
+  // Parsed ONCE (the `ct` comparison used to re-parse the same bytes further
+  // down). `origMeta` holds what is stored, `meta` is the mutable copy that gets
+  // written back, so the rewrite guard below can compare the two field by field.
+  let origMeta;
+  try { origMeta = JSON.parse(metaRawOrig); } catch { return replyError(req, url, "corrupt_meta", "Corrupt meta", 500); }
   const tokenHash = await sha256Base64Url(token);
-  if (!ctEq(tokenHash, meta.h || "")) return replyError(req, url, "invalid_token", "Invalid edit token", 403);
+  if (!ctEq(tokenHash, origMeta.h || "")) return replyError(req, url, "invalid_token", "Invalid edit token", 403);
+  const meta = { ...origMeta };
 
   let content = contentIn;
-  if (!content) {
+  if (content) {
+    // An explicit content rewrite is the ONLY way a note's kind changes, and it
+    // is now recorded instead of re-derived on every read (2.23).
+    meta.k = kind;
+  } else {
     const existing = await env.NOTES.get("n:" + sub);
     if (existing == null) return replyError(req, url, "not_found", "Not found", 404);
     content = existing;
-    urlMode = isUrl(content);
+    // TTL-only / renew-only edit: report the STORED kind (with the legacy
+    // isUrl fallback for records written before `k` existed) and leave `meta.k`
+    // exactly as it was, including absent (2.22). Backfilling it here was
+    // considered and rejected in design.md — the value would equal the fallback
+    // anyway, but `k` would then change during an operation that supplies no
+    // content, and the 7-day maximum TTL already bounds the fallback window.
+    kind = readKind(origMeta, content);
+    urlMode = kind === "url";
   }
 
   if (contentIn) {
     if (urlMode) {
-      if (hasDangerousScheme(content)) { recordReject(env, "bad_scheme", ip); return replyError(req, url, "bad_scheme", "Dangerous URL scheme", 400); }
+      if (hasDangerousScheme(content)) { bg.waitUntil(recordReject(env, "bad_scheme", ip)); return replyError(req, url, "bad_scheme", "Dangerous URL scheme", 400); }
       const parsed = parseUrlSafe(content);
       if (parsed) {
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") { recordReject(env, "bad_scheme", ip); return replyError(req, url, "bad_scheme", "Only http/https URLs are allowed", 400, { scheme: parsed.protocol }); }
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") { bg.waitUntil(recordReject(env, "bad_scheme", ip)); return replyError(req, url, "bad_scheme", "Only http/https URLs are allowed", 400, { scheme: parsed.protocol }); }
         const blockedHost = isBlockedTargetHost(parsed.hostname);
-        if (blockedHost) { recordReject(env, "shortener_blocked", ip); return replyError(req, url, "shortener_blocked", "Chaining URL shorteners is not allowed", 400, { host: blockedHost }); }
+        if (blockedHost) { bg.waitUntil(recordReject(env, "shortener_blocked", ip)); return replyError(req, url, "shortener_blocked", "Chaining URL shorteners is not allowed", 400, { host: blockedHost }); }
       }
       const sb = await checkSafeBrowsing(env, content);
-      if (!sb.ok && sb.threats) { recordReject(env, "unsafe_target", ip); return replyError(req, url, "unsafe_target", "Target URL flagged unsafe", 400, { threats: sb.threats }); }
+      if (!sb.ok && sb.threats) { bg.waitUntil(recordReject(env, "unsafe_target", ip)); return replyError(req, url, "unsafe_target", "Target URL flagged unsafe", 400, { threats: sb.threats }); }
     }
     const mod = await aiModerate(env, urlMode ? "url" : "text", content, sub);
-    if (!mod.ok) { recordReject(env, "content_blocked", ip); return replyError(req, url, "content_blocked", "Content classified as abusive by moderation", 400, { label: mod.label || "other", reason: mod.reason }); }
+    if (!mod.ok) { bg.waitUntil(recordReject(env, "content_blocked", ip)); return replyError(req, url, "content_blocked", "Content classified as abusive by moderation", 400, { label: mod.label || "other", reason: mod.reason }); }
   }
 
   const newTtlRaw = (bp.ttl || url.searchParams.get("ttl") || "").toLowerCase();
   if (newTtlRaw && !(newTtlRaw in TTL_OPTIONS)) return replyError(req, url, "invalid_ttl", "Invalid ttl (use " + Object.keys(TTL_OPTIONS).join("/") + ")", 400, { allowed: Object.keys(TTL_OPTIONS) });
-  const ttlKey = newTtlRaw || (TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL);
-  const origTtl = meta.t;
+  const ttlKey = newTtlRaw || (TTL_OPTIONS[origMeta.t] !== undefined ? origMeta.t : DEFAULT_TTL);
   meta.t = ttlKey;
   meta.ct = meta.ct || Date.now();
   if (renewFlag || newTtlRaw || contentIn) meta.ct = Date.now();
-  const metaRaw = (ttlKey !== origTtl || meta.ct !== (JSON.parse(metaRawOrig).ct || 0)) ? JSON.stringify(meta) : metaRawOrig;
+  // Reuse the original bytes only when nothing we persist actually moved. `k`
+  // joins the comparison so a newly-recorded kind is never dropped by this path.
+  const metaRaw = (ttlKey !== origMeta.t || meta.ct !== origMeta.ct || meta.k !== origMeta.k) ? JSON.stringify(meta) : metaRawOrig;
 
   const ttlSec = TTL_OPTIONS[ttlKey];
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};
@@ -181,7 +219,6 @@ async function handleEdit(req, env, sub, url) {
     env.NOTES.put("m:" + sub, metaRaw, putOpts),
   ]);
 
-  const kind = urlMode ? "url" : "text";
   const target = urlMode ? content.trim() : null;
   const createdAtMs = meta.ct || Date.now();
   const mh = noteMetaHeaders({ name: sub, ttlKey, createdAtMs, kind, target });
@@ -190,16 +227,67 @@ async function handleEdit(req, env, sub, url) {
     return jsonResponse({ ok: true, apiVersion: API_VERSION, name: sub, kind, shortUrl: shortUrlFor(sub), rawUrl: shortUrlFor(sub) + "/raw", ttl: ttlKey, createdAt: new Date(createdAtMs).toISOString(), expiresAt: expiresAtIso(ttlKey, createdAtMs), target, contentLength: content.length }, 200, mh);
   }
 
-  const r = resultPage(sub, content, "updated", ttlKey, null);
+  const r = resultPage(sub, content, "updated", ttlKey, null, kind);
   for (const k in mh) r.headers.set(k, mh[k]);
   return r;
 }
 
+/**
+ * Seconds of life the note itself has left, from its own `m:<name>` record.
+ *
+ * Returns QUARANTINE_MAX_TTL_SEC when meta is missing, unparseable, or carries
+ * no usable `t` / `ct` — the safe direction, since a missing note cannot be
+ * over-protected and the value is clamped to a note lifetime anyway. May return
+ * a negative number for an already-expired record; `quarantineTtlSec` clamps it.
+ */
+export function remainingNoteTtlSec(meta) {
+  if (meta == null || typeof meta !== "object") return QUARANTINE_MAX_TTL_SEC;
+  const ttlSec = TTL_OPTIONS[meta.t];
+  const ct = meta.ct;
+  if (!ttlSec || typeof ct !== "number" || !Number.isFinite(ct) || ct <= 0) return QUARANTINE_MAX_TTL_SEC;
+  return Math.floor((ct + ttlSec * 1000 - Date.now()) / 1000);
+}
+
+/**
+ * The automatic quarantine's lifetime: the note's own remaining TTL, clamped
+ * into [QUARANTINE_MIN_TTL_SEC, QUARANTINE_MAX_TTL_SEC] (2.16).
+ *
+ * The clamp is what bounds the marker. The lower bound keeps a quarantine from
+ * being written with a zero or negative TTL (which KV would reject) when the
+ * note is about to expire on its own; the upper bound is the longest note TTL,
+ * so the marker can never outlive the content the way the old 365-day disable
+ * did (1.13).
+ */
+export function quarantineTtlSec(meta) {
+  const remaining = remainingNoteTtlSec(meta);
+  if (!Number.isFinite(remaining)) return QUARANTINE_MAX_TTL_SEC;
+  return Math.min(QUARANTINE_MAX_TTL_SEC, Math.max(QUARANTINE_MIN_TTL_SEC, remaining));
+}
+
 async function handleAbuseReport(req, env, sub, url) {
   const ip = req.headers.get("cf-connecting-ip") || "0";
-  const ipTrunc = ip.split(":").slice(0, 4).join(":").split(".").slice(0, 3).join(".");
-  const day = new Date().toISOString().slice(0, 10);
-  const dedupeKey = "abuse-dedupe:" + sub + ":" + day + ":" + (await sha256Base64Url(ipTrunc)).slice(0, 12);
+
+  // D3 (1.9, 1.12, 2.12): verify the human-verification challenge FIRST, before
+  // any read or write of the counter, so an unverified report is fully inert —
+  // it cannot advance `abuse:<sub>`, cannot burn the reporter group's one
+  // dedupe slot, and cannot contribute to the quarantine threshold.
+  //
+  // `verifyTurnstile` returns {ok:true} when TURNSTILE_SECRET is unset, so an
+  // unconfigured deployment (including the test environment) behaves exactly as
+  // before (2.13); it also fails open on a network error, deliberately, since a
+  // Cloudflare outage must not silence abuse reporting.
+  const bodyRes = await readBody(req);
+  const tsToken = req.headers.get("x-turnstile-token") || (bodyRes.ok && bodyRes.body && bodyRes.body.turnstile) || "";
+  const v = await verifyTurnstile(env, tsToken, ip);
+  if (!v.ok) return replyError(req, url, "challenge_failed", "Human verification failed", 403, { reason: v.reason });
+
+  // One reporter == one address RANGE, canonicalized (2.17). The `:<day>:`
+  // segment the key used to carry is GONE and the TTL now matches the counter's,
+  // so a group counts at most once per note per counter lifetime — which is what
+  // makes ABUSE_AUTO_QUARANTINE mean "10 distinct ranges" rather than "10
+  // requests". The key PREFIX is unchanged, so stale day-scoped keys simply
+  // expire, and a repeat report from the same group still answers deduped:true.
+  const dedupeKey = "abuse-dedupe:" + sub + ":" + (await sha256Base64Url(reporterGroup(ip))).slice(0, 12);
   const counterKey = "abuse:" + sub;
   const [already, counterRaw] = await Promise.all([
     env.NOTES.get(dedupeKey),
@@ -210,11 +298,24 @@ async function handleAbuseReport(req, env, sub, url) {
   if (!already) {
     count += 1;
     const puts = [
-      env.NOTES.put(counterKey, String(count), { expirationTtl: 30 * 86400 }),
-      env.NOTES.put(dedupeKey, "1", { expirationTtl: 86400 }),
+      env.NOTES.put(counterKey, String(count), { expirationTtl: ABUSE_GROUP_TTL_SEC }),
+      env.NOTES.put(dedupeKey, "1", { expirationTtl: ABUSE_GROUP_TTL_SEC }),
     ];
-    if (count >= ABUSE_AUTO_DISABLE) {
-      puts.push(env.NOTES.put("d:" + sub, JSON.stringify({ reason: "community_reports", count, at: Date.now() }), { expirationTtl: 365 * 86400 }));
+    if (count >= ABUSE_AUTO_QUARANTINE) {
+      // A bounded, reversible QUARANTINE, not a 365-day disable (2.15, 2.16).
+      // The key stays `d:<sub>`, so the 410 read path and /admin/enable's
+      // delete of both `d:` and `abuse:` keep working untouched.
+      let noteMeta: any = null;
+      try {
+        const metaRaw = await env.NOTES.get("m:" + sub);
+        noteMeta = metaRaw ? JSON.parse(metaRaw) : null;
+      } catch {}
+      const ttl = quarantineTtlSec(noteMeta);
+      const now = Date.now();
+      // `exp` is stored INSIDE the payload because KV does not expose a
+      // record's remaining TTL on read: it is the only way the bound is
+      // observable to the 410 page, to the admin detail view, and to a test.
+      puts.push(env.NOTES.put("d:" + sub, JSON.stringify({ reason: "community_reports", auto: true, count, at: now, exp: now + ttl * 1000 }), { expirationTtl: ttl }));
       disabled = true;
     }
     await Promise.all(puts);
@@ -229,7 +330,7 @@ async function handleAbuseReport(req, env, sub, url) {
   });
 }
 
-async function handleSubdomain(req, env, host, url) {
+async function handleSubdomain(req, env, host, url, bg: Background) {
   const pathname = url.pathname;
   const sub = host.slice(0, -(BASE_HOST.length + 1));
   if (!NAME_RE.test(sub) || RESERVED.has(sub)) {
@@ -241,17 +342,45 @@ async function handleSubdomain(req, env, host, url) {
 
   const disabledRaw = await env.NOTES.get("d:" + sub);
   if (disabledRaw) {
-    if (wantsJson(req, url)) return jsonError("disabled", "Content disabled due to abuse reports", 410, { name: sub });
+    // Owner recourse for an AUTOMATIC quarantine (2.16): the marker is parsed so
+    // the owner can be told when it lifts by itself, on top of the appeal route
+    // that was already here. There is deliberately no self-serve un-quarantine
+    // endpoint — for a genuinely malicious note the edit-token holder IS the
+    // abuser, so token-gated self-clearing would defeat the mechanism; the
+    // documented path is expiry-plus-appeal.
+    //
+    // An ADMIN marker (no `auto`, and every marker written before this change)
+    // renders byte-identically to before, and the status (410) and error code
+    // ("disabled") are unchanged for both kinds.
+    let marker: any = null;
+    try { marker = JSON.parse(disabledRaw); } catch {}
+    const auto = !!(marker && marker.auto === true);
+    const until = auto && typeof marker.exp === "number" && Number.isFinite(marker.exp) ? new Date(marker.exp).toISOString() : null;
+    if (wantsJson(req, url)) {
+      const details: any = { name: sub };
+      if (auto) {
+        details.auto = true;
+        if (until) details.until = until;
+      }
+      return jsonError("disabled", "Content disabled due to abuse reports", 410, details);
+    }
     return statusPage({
       title: "内容已禁用",
       message: "该短链/笔记因举报被系统自动禁用。",
-      detailsHtml: '<p class="muted">若系误判，请通过 <a href="mailto:' + ABUSE_EMAIL + '">' + ABUSE_EMAIL + "</a> 申诉。</p>",
+      detailsHtml:
+        (auto
+          ? '<p class="muted">这是社区举报触发的<strong>临时隔离</strong>' +
+            (until ? '，将于 <span class="mono">' + esc(until) + "</span> 自动解除" : "") +
+            "。</p>"
+          : "") +
+        '<p class="muted">若系误判，请通过 <a href="mailto:' + ABUSE_EMAIL + '">' + ABUSE_EMAIL + "</a> 申诉" +
+        (auto ? "，管理员可提前解除" : "") + "。</p>",
       tone: "warn",
       status: 410,
     });
   }
 
-  if (url.searchParams.has("edit") || req.method === "POST" || req.method === "PUT") return handleEdit(req, env, sub, url);
+  if (url.searchParams.has("edit") || req.method === "POST" || req.method === "PUT") return handleEdit(req, env, sub, url, bg);
 
   if (pathname === "/edit") {
     const [metaRaw, existing] = await Promise.all([
@@ -281,8 +410,11 @@ async function handleSubdomain(req, env, host, url) {
   try { meta = metaRaw ? JSON.parse(metaRaw) : {}; } catch {}
   const ttlKey = TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL;
   const createdAtMs = meta.ct || 0;
-  const urlMode = isUrl(content);
-  const kind = urlMode ? "url" : "text";
+  // D4 (2.20): the branch below follows the *persisted* kind, not a re-derivation
+  // from content. `readKind` falls back to `isUrl(content)` only when `m:<sub>`
+  // carries no usable `k`, so legacy records keep behaving exactly as before (2.21).
+  const kind = readKind(meta, content);
+  const urlMode = kind === "url";
   const target = urlMode ? content.trim() : null;
   const mh = noteMetaHeaders({ name: sub, ttlKey, createdAtMs, kind, target });
 
@@ -300,7 +432,10 @@ async function handleSubdomain(req, env, host, url) {
     if (isAllowedTarget(target)) {
       return new Response(null, { status: 302, headers: Object.assign({ location: target }, mh) });
     }
-    return interstitialPage(sub, target);
+    // D3 (2.18): the challenge widget is rendered only when a site key is
+    // configured. `TURNSTILE_SITEKEY` defaults to "" in wrangler.toml, so an
+    // unconfigured deployment renders the page exactly as before.
+    return interstitialPage(sub, target, env.TURNSTILE_SITEKEY);
   }
   return notePage(sub, content);
 }
@@ -317,8 +452,16 @@ function corsPreflight() {
 const baseApp = new Hono<{ Bindings: Env }>();
 const subApp = new Hono<{ Bindings: Env }>();
 
-baseApp.use("*", logger());
-subApp.use("*", logger());
+// D1 (1.2, 2.2, 2.3): hono's logger() builds `path = url.slice(url.indexOf("/", 8))`
+// — the path PLUS the query string — and hands the whole line to its print
+// function, which defaults to console.log. Substituting a print function that
+// runs `redactLogLine` first is therefore a single seam covering the incoming
+// (`<--`) and outgoing (`-->`) lines of EVERY route, including the deprecated
+// `?edit=` GET form and `/admin/*?key=`. Response bodies and headers are
+// untouched: this changes what is logged, never what is served.
+const redactedPrint = (message: string, ...rest: string[]) => console.log(redactLogLine(message), ...rest);
+baseApp.use("*", logger(redactedPrint));
+subApp.use("*", logger(redactedPrint));
 
 const onError = (err: Error, c: any) => {
   console.error("unhandled", (err && err.stack) || err);
@@ -329,16 +472,42 @@ const onError = (err: Error, c: any) => {
 baseApp.onError(onError);
 subApp.onError(onError);
 
+// --- Background work plumbing (D2) ---------------------------------------
+// hono's `c.executionCtx` getter THROWS ("This context has no
+// ExecutionContext") when the context was built without one — it does not
+// return undefined — so every access has to be guarded.
+function safeExecutionCtx(c: any) {
+  try {
+    return c.executionCtx;
+  } catch {
+    return null;
+  }
+}
+
+// The single choke point for every route that records telemetry: build the
+// Background facade from whatever the platform gave us and settle it in a
+// `finally`, so queued work is awaited even when the handler throws into
+// onError. With a real ExecutionContext settle() is a no-op and the response is
+// never delayed; without one the queued writes are awaited before returning.
+async function withBackground(c: any, run: (bg: Background) => Promise<Response>): Promise<Response> {
+  const bg = makeBackground(safeExecutionCtx(c));
+  try {
+    return await run(bg);
+  } finally {
+    await bg.settle();
+  }
+}
+
 // --- Base host (0g.hk) ---
 baseApp.get("/exists", (c) => handleExists(c.env, new URL(c.req.url)));
 baseApp.all("/admin", (c) => handleAdmin(c.req.raw, c.env, new URL(c.req.url)));
 baseApp.all("/admin/*", (c) => handleAdmin(c.req.raw, c.env, new URL(c.req.url)));
 // /llms.txt, /llms-full.txt, /robots.txt, /favicon.svg are served from
 // public/ via the [assets] binding before the Worker runs (see wrangler.toml).
-baseApp.on(["POST", "PUT"], "/", (c) => handleCreate(c.req.raw, c.env, new URL(c.req.url)));
+baseApp.on(["POST", "PUT"], "/", (c) => withBackground(c, (bg) => handleCreate(c.req.raw, c.env, new URL(c.req.url), bg)));
 baseApp.get("/", async (c) => {
   const u = new URL(c.req.url);
-  if (u.searchParams.has("c")) return handleCreate(c.req.raw, c.env, u);
+  if (u.searchParams.has("c")) return withBackground(c, (bg) => handleCreate(c.req.raw, c.env, u, bg));
   // Non-browser clients (curl/LLM agents) get the canonical short docs.
   if (!isBrowserRequest(c.req.raw)) return c.env.ASSETS.fetch(new URL("/llms.txt", c.req.url));
   return editorPage({
@@ -359,16 +528,20 @@ baseApp.notFound((c) => {
 subApp.all("*", (c) => {
   const u = new URL(c.req.url);
   const host = u.hostname.toLowerCase();
-  return handleSubdomain(c.req.raw, c.env, host, u);
+  return withBackground(c, (bg) => handleSubdomain(c.req.raw, c.env, host, u, bg));
 });
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  // `ctx` is annotated deliberately: under `strict: false` an explicit
+  // annotation on the new parameter is the only compiler-level check that it is
+  // accepted and forwarded. Forwarding it to app.fetch is what makes
+  // `c.executionCtx` (and therefore waitUntil) usable at all.
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     const host = url.hostname.toLowerCase();
     if (req.method === "OPTIONS") return corsPreflight();
-    if (host === BASE_HOST) return baseApp.fetch(req, env);
-    if (host.endsWith("." + BASE_HOST)) return subApp.fetch(req, env);
+    if (host === BASE_HOST) return baseApp.fetch(req, env, ctx);
+    if (host.endsWith("." + BASE_HOST)) return subApp.fetch(req, env, ctx);
     if (wantsJson(req, url)) return jsonError("not_found", "Not found", 404);
     return new Response("Not found", { status: 404 });
   },

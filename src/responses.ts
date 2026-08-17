@@ -193,6 +193,13 @@ export async function readBody(req) {
         ttl: j.ttl != null ? String(j.ttl) : "",
         token: j.token != null ? String(j.token) : (j.edit != null ? String(j.edit) : ""),
         renew: j.renew != null ? (j.renew === true || j.renew === "1" || j.renew === "true") : undefined,
+        // D3 (2.12): the Turnstile challenge token, so it survives body parsing
+        // and `handleAbuseReport` can verify it. `ts` is the short spelling the
+        // interstitial's inline JS sends; `cf-turnstile-response` is the name of
+        // the hidden input the widget itself renders, accepted verbatim so a
+        // caller can forward a serialized form without renaming anything. Purely
+        // additive — no existing field or precedence moves.
+        turnstile: j.ts ?? j.turnstile ?? j["cf-turnstile-response"],
       }};
     }
     if (ctype.startsWith("application/x-www-form-urlencoded") || ctype.startsWith("multipart/form-data")) {
@@ -204,6 +211,10 @@ export async function readBody(req) {
         ttl: g("ttl"),
         token: g("edit") || g("token"),
         renew: fd.get("renew") != null ? true : undefined,
+        // `cf-turnstile-response` first here: a plain <form> containing the
+        // widget submits exactly that field name, and it is the most specific of
+        // the three.
+        turnstile: g("cf-turnstile-response") || g("ts") || g("turnstile"),
       }};
     }
     const text = await req.text();

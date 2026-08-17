@@ -39,7 +39,33 @@ export const SHORTENER_HOSTS = new Set([
   "0g.hk",
 ]);
 
-export const ABUSE_AUTO_DISABLE = 3;
+// --- Abuse reporting (D3) --------------------------------------------------
+//
+// Number of DISTINCT REPORTER GROUPS (one IPv6 /64 or one IPv4 /24, see
+// reporterGroup()) that must report a name before the automatic action fires.
+//
+// THRESHOLD RATIONALE. After group collapsing, one unit of `abuse:<name>` costs
+// the reporter one distinct /64 or /24 *and* one solved challenge. That makes 10
+// the right order of magnitude from both directions:
+//   - high enough that a single residential delegation no longer buys a
+//     takedown cheaply. Such a delegation is typically a /56 or /48, i.e.
+//     256–65536 /64s, so before collapsing the old threshold of 3 was reachable
+//     from one subscriber line (1.10, 1.11);
+//   - low enough that a genuinely abused link still trips well within a day of
+//     real reports, which is all the lifetime a note can have anyway (max 7d).
+// The previous constant `ABUSE_AUTO_DISABLE = 3` is REMOVED rather than aliased,
+// so nothing can keep counting against the old bound by accident.
+export const ABUSE_AUTO_QUARANTINE = 10;
+// Bounds on the automatic quarantine marker's lifetime (2.16). The window is
+// the note's OWN remaining TTL, clamped into [min, max] — so the marker can
+// never outlive the content it protects by more than a note lifetime, which is
+// what replaces the old 365-day hard disable (1.13).
+export const QUARANTINE_MAX_TTL_SEC = 7 * 86400; // == the longest note TTL
+export const QUARANTINE_MIN_TTL_SEC = 3600; // == the shortest note TTL
+// `abuse:<name>` counter TTL, and now the dedupe key's TTL too: one reporter
+// group counts at most once per note per COUNTER lifetime, which is what makes
+// ABUSE_AUTO_QUARANTINE mean "10 distinct ranges" (2.17).
+export const ABUSE_GROUP_TTL_SEC = 30 * 86400;
 export const ABUSE_EMAIL = "abuse@0g.hk";
 
 export const NAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;

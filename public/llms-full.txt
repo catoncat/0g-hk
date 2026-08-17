@@ -93,10 +93,27 @@ Response 200: { ok, name, contentType, expiresAt }.
 
 HTML edit form post-back. Body: form-urlencoded { content, token }.
 
+The edit token may be sent three ways, all validated identically: the
+`X-Edit-Token` request header, a `token` body field, or the deprecated
+`?edit=<token>` query parameter. Prefer the first two — a query string is
+recorded in Worker and Cloudflare request logs (where the value is now
+redacted). `X-Edit-Token` is honoured on POST/PUT only; a GET carrying it is a
+plain read.
+
 ### POST https://<name>.0g.hk/abuse
 
-Report abuse. Body: { reason }. After ABUSE_AUTO_DISABLE (3) reports the note
-is auto-disabled.
+Report abuse. Body: { reason }, plus a Turnstile token as `turnstile` /
+`cf-turnstile-response` (or the `X-Turnstile-Token` header) when the deployment
+configures TURNSTILE_SECRET; an unverified report is rejected with
+403 challenge_failed and changes no counter.
+
+Reports are counted per REPORTER GROUP — one IPv6 /64 or one IPv4 /24 — so
+varying the low bits of an address does not add to the count. After
+ABUSE_AUTO_QUARANTINE (10) DISTINCT groups report a name, it is placed under a
+bounded, reversible QUARANTINE (not a permanent disable): the marker lives for
+the note's own remaining TTL, clamped to [1h, 7d], so it can never outlive the
+content. A quarantined note answers 410 `disabled` with details.auto=true and
+details.until. An admin can lift it immediately via POST /admin/enable.
 
 ## Headers
 

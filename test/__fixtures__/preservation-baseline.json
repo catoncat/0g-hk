@@ -1,0 +1,3953 @@
+{
+  "$comment": "RECORDED AGAINST THE UNFIXED TREE (Property 16 baseline). Assert mode is the default; PRESERVE=record rewrites this file. Do not hand-edit.",
+  "fastCheck": {
+    "seed": 20260817,
+    "numRuns": 10
+  },
+  "tuple": [
+    "status",
+    "JSON error code",
+    "x-* headers (sorted)",
+    "location",
+    "/raw bytes",
+    "n:<name> and m:<name> KV state, excluding meta.k"
+  ],
+  "normalization": {
+    "meta.k": "EXCLUDED. Does not exist in F; task 5 adds it. design.md's tuple excludes it explicitly.",
+    "meta.h": "Replaced with <token-hash>. Derived from a random per-note edit token.",
+    "meta.ct": "Replaced with <ms>. Wall-clock creation time.",
+    "x-created-at / x-expires-at / json createdAt / expiresAt / at / until / exp": "Replaced with <iso> / <ms>. Wall-clock. The TTL *window* is preserved separately as ttlWindowSec, and 'each edit resets the expiry window' is preserved as metaCtChanged, so 3.4's semantics stay observable without recording clock noise.",
+    "x-edit-token / json editToken": "Replaced with <token>. Random per note. Presence is still pinned, and tokenAppearsIn records the exact set of places the raw token value occurs — which is what D1 must not widen.",
+    "x-edit-url / json editUrl": "Replaced with <url-with-token>: the URL embeds the random token.",
+    "set-cookie": "Value replaced with <value>: the admin session token is HMAC-over-now.",
+    "server-allocated note names": "Replaced with <random> for the one create that omits `name`.",
+    "/admin/stats day keys": "Relabelled day0..day6, newest first: they are today's date, and Promise.all completion order makes the raw key order unstable.",
+    "/admin/stats rejection counts": "Replaced with <count>. These counts are exactly what D2 changes (a lost telemetry write is the defect), so recording them would encode the bug as an expectation. Shape, status and code set are still pinned; the numbers are Property 4/6's job.",
+    "static asset bodies (/llms.txt, /robots.txt, apex manual)": "Bytes not recorded; only status, content-type and marker presence. Task 8 edits these files on purpose, and a documentation edit must not read as a preservation regression.",
+    "response bodies over 512 chars": "Truncated with a …<truncated> suffix; byteLength is recorded alongside.",
+    "HTML bodies": "Recorded as <title> plus a fixed marker table (which branch answered), not as full HTML — test/__snapshots__/views.test.ts.snap owns the markup."
+  },
+  "notExercised": {
+    "unsafe_target": "Unreachable in the test environment: checkSafeBrowsing() no-ops without SAFE_BROWSING_KEY.",
+    "content_blocked": "Unreachable in the test environment: env.AI.run throws ('Binding AI needs to be run remotely') and aiModerate fails open.",
+    "bad_scheme": "Unreachable through the public API in F, for any input: hasDangerousScheme() is only consulted when isUrl() is true, and every javascript:/data:/vbscript:/file: string fails URL_NO_SCHEME_RE, while an isUrl()-true string is always normalized to http(s). The two gate-bad-scheme-* entries record what F ACTUALLY does with those inputs (creates a text note) so a fix that changes it shows up. Not fixed here — out of scope."
+  },
+  "entryCount": 130,
+  "entries": {
+    "read-302-allowlist": {
+      "status": 302,
+      "contentType": null,
+      "headers": {
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "location": "https://github.com/catoncat/0g-hk",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "pbredir",
+        "x-raw-url": "https://pbredir.0g.hk/raw",
+        "x-short-url": "https://pbredir.0g.hk",
+        "x-target": "https://github.com/catoncat/0g-hk",
+        "x-ttl": "7d"
+      },
+      "location": "https://github.com/catoncat/0g-hk",
+      "code": null,
+      "bodyLength": 0,
+      "body": "",
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://github.com/catoncat/0g-hk",
+        "byteLength": 33
+      },
+      "kv": {
+        "n": "https://github.com/catoncat/0g-hk",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "read-302-allowlist-json": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "pbredir",
+        "x-raw-url": "https://pbredir.0g.hk/raw",
+        "x-short-url": "https://pbredir.0g.hk",
+        "x-target": "https://github.com/catoncat/0g-hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "content": "https://github.com/catoncat/0g-hk",
+        "contentLength": 33,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "url",
+        "name": "pbredir",
+        "ok": true,
+        "rawUrl": "https://pbredir.0g.hk/raw",
+        "shortUrl": "https://pbredir.0g.hk",
+        "target": "https://github.com/catoncat/0g-hk",
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://github.com/catoncat/0g-hk",
+        "byteLength": 33
+      },
+      "kv": {
+        "n": "https://github.com/catoncat/0g-hk",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "read-interstitial": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "即将跳转 · 0g.hk",
+      "htmlMarkers": [
+        "interstitial-warning",
+        "interstitial-report"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://untrusted.example/path?x=1",
+        "byteLength": 34
+      },
+      "kv": {
+        "n": "https://untrusted.example/path?x=1",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "read-interstitial-go1-does-not-bypass": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "即将跳转 · 0g.hk",
+      "htmlMarkers": [
+        "interstitial-warning",
+        "interstitial-report"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://untrusted.example/path?x=1",
+        "byteLength": 34
+      },
+      "kv": {
+        "n": "https://untrusted.example/path?x=1",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "read-interstitial-json": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "pbext",
+        "x-raw-url": "https://pbext.0g.hk/raw",
+        "x-short-url": "https://pbext.0g.hk",
+        "x-target": "https://untrusted.example/path?x=1",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "content": "https://untrusted.example/path?x=1",
+        "contentLength": 34,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "url",
+        "name": "pbext",
+        "ok": true,
+        "rawUrl": "https://pbext.0g.hk/raw",
+        "shortUrl": "https://pbext.0g.hk",
+        "target": "https://untrusted.example/path?x=1",
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://untrusted.example/path?x=1",
+        "byteLength": 34
+      },
+      "kv": {
+        "n": "https://untrusted.example/path?x=1",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "read-text-notepage": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "pbtext · 0g.hk",
+      "htmlMarkers": [
+        "note-editor-textarea"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "hello **bold** preservation",
+        "byteLength": 27
+      },
+      "kv": {
+        "n": "hello **bold** preservation",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "read-text-plain-accept": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "pbtext · 0g.hk",
+      "htmlMarkers": [
+        "note-editor-textarea"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "hello **bold** preservation",
+        "byteLength": 27
+      },
+      "kv": {
+        "n": "hello **bold** preservation",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "read-raw": {
+      "status": 200,
+      "contentType": "text/plain;charset=utf-8",
+      "headers": {
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbtext",
+        "x-raw-url": "https://pbtext.0g.hk/raw",
+        "x-short-url": "https://pbtext.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "bodyLength": 27,
+      "body": "hello **bold** preservation",
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "hello **bold** preservation",
+        "byteLength": 27
+      },
+      "kv": {
+        "n": "hello **bold** preservation",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "read-json-shape": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbtext",
+        "x-raw-url": "https://pbtext.0g.hk/raw",
+        "x-short-url": "https://pbtext.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "content": "hello **bold** preservation",
+        "contentLength": 27,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbtext",
+        "ok": true,
+        "rawUrl": "https://pbtext.0g.hk/raw",
+        "shortUrl": "https://pbtext.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "hello **bold** preservation",
+        "byteLength": 27
+      },
+      "kv": {
+        "n": "hello **bold** preservation",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "read-404-json": {
+      "status": 404,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "not_found",
+      "json": {
+        "error": {
+          "code": "not_found",
+          "details": {
+            "name": "pbmissing"
+          },
+          "message": "Not found"
+        },
+        "ok": false
+      },
+      "kv": {
+        "n": null,
+        "m": null
+      }
+    },
+    "read-404-html": {
+      "status": 404,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "pbmissing · 还没人占用",
+      "htmlMarkers": [
+        "not-found-page"
+      ]
+    },
+    "read-410-disabled-json": {
+      "status": 410,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "disabled",
+      "json": {
+        "error": {
+          "code": "disabled",
+          "details": {
+            "name": "pbdisabled"
+          },
+          "message": "Content disabled due to abuse reports"
+        },
+        "ok": false
+      },
+      "kv": {
+        "n": "disabled content",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "kvExtra": {
+        "d:pbdisabled": {
+          "at": "<ms>",
+          "reason": "admin"
+        }
+      }
+    },
+    "read-410-disabled-html": {
+      "status": 410,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "内容已禁用 · 0g.hk",
+      "htmlMarkers": [
+        "disabled-page"
+      ]
+    },
+    "read-edit-page": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "编辑 pbeditpage · 0g.hk",
+      "htmlMarkers": [
+        "note-editor-textarea"
+      ]
+    },
+    "read-edit-page-missing-note": {
+      "status": 404,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "pbmissing · 还没人占用",
+      "htmlMarkers": [
+        "not-found-page"
+      ]
+    },
+    "read-reserved-subdomain-json": {
+      "status": 404,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "not_found",
+      "json": {
+        "error": {
+          "code": "not_found",
+          "details": {
+            "name": "admin"
+          },
+          "message": "Not found"
+        },
+        "ok": false
+      }
+    },
+    "exists-free": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "exists": false,
+        "valid": true
+      }
+    },
+    "exists-brand": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "reason": "brand",
+        "term": "paypal",
+        "valid": false
+      }
+    },
+    "exists-reserved": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "reason": "reserved",
+        "valid": false
+      }
+    },
+    "exists-taken": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "exists": true,
+        "valid": true
+      }
+    },
+    "exists-empty": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "reason": "empty",
+        "valid": false
+      }
+    },
+    "gen-create-0": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "gen0",
+        "x-raw-url": "https://gen0.0g.hk/raw",
+        "x-short-url": "https://gen0.0g.hk",
+        "x-target": "https://example.com",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 19,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "url",
+        "name": "gen0",
+        "ok": true,
+        "rawUrl": "https://gen0.0g.hk/raw",
+        "shortUrl": "https://gen0.0g.hk",
+        "target": "https://example.com",
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://example.com",
+        "byteLength": 19
+      },
+      "kv": {
+        "n": "https://example.com",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "input": {
+        "content": "example.com",
+        "ttl": "7d"
+      }
+    },
+    "gen-read-0": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "即将跳转 · 0g.hk",
+      "htmlMarkers": [
+        "interstitial-warning",
+        "interstitial-report"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://example.com",
+        "byteLength": 19
+      },
+      "kv": {
+        "n": "https://example.com",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "gen-create-1": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "gen1",
+        "x-raw-url": "https://gen1.0g.hk/raw",
+        "x-short-url": "https://gen1.0g.hk",
+        "x-target": "https://1.2.3.4",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 15,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "url",
+        "name": "gen1",
+        "ok": true,
+        "rawUrl": "https://gen1.0g.hk/raw",
+        "shortUrl": "https://gen1.0g.hk",
+        "target": "https://1.2.3.4",
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://1.2.3.4",
+        "byteLength": 15
+      },
+      "kv": {
+        "n": "https://1.2.3.4",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "input": {
+        "content": "1.2.3.4",
+        "ttl": ""
+      }
+    },
+    "gen-read-1": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "即将跳转 · 0g.hk",
+      "htmlMarkers": [
+        "interstitial-warning",
+        "interstitial-report"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://1.2.3.4",
+        "byteLength": 15
+      },
+      "kv": {
+        "n": "https://1.2.3.4",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "gen-create-2": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "gen2",
+        "x-raw-url": "https://gen2.0g.hk/raw",
+        "x-short-url": "https://gen2.0g.hk",
+        "x-target": "https://github.com/catoncat/0g-hk#frag",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 38,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "url",
+        "name": "gen2",
+        "ok": true,
+        "rawUrl": "https://gen2.0g.hk/raw",
+        "shortUrl": "https://gen2.0g.hk",
+        "target": "https://github.com/catoncat/0g-hk#frag",
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://github.com/catoncat/0g-hk#frag",
+        "byteLength": 38
+      },
+      "kv": {
+        "n": "https://github.com/catoncat/0g-hk#frag",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "input": {
+        "content": "https://github.com/catoncat/0g-hk#frag",
+        "ttl": ""
+      }
+    },
+    "gen-read-2": {
+      "status": 302,
+      "contentType": null,
+      "headers": {
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "location": "https://github.com/catoncat/0g-hk#frag",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "gen2",
+        "x-raw-url": "https://gen2.0g.hk/raw",
+        "x-short-url": "https://gen2.0g.hk",
+        "x-target": "https://github.com/catoncat/0g-hk#frag",
+        "x-ttl": "7d"
+      },
+      "location": "https://github.com/catoncat/0g-hk#frag",
+      "code": null,
+      "bodyLength": 0,
+      "body": "",
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://github.com/catoncat/0g-hk#frag",
+        "byteLength": 38
+      },
+      "kv": {
+        "n": "https://github.com/catoncat/0g-hk#frag",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "gen-create-3": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "gen3",
+        "x-raw-url": "https://gen3.0g.hk/raw",
+        "x-short-url": "https://gen3.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 23,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "gen3",
+        "ok": true,
+        "rawUrl": "https://gen3.0g.hk/raw",
+        "shortUrl": "https://gen3.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "# md heading\n\nbody text",
+        "byteLength": 23
+      },
+      "kv": {
+        "n": "# md heading\n\nbody text",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "input": {
+        "content": "# md heading\n\nbody text",
+        "ttl": "7d"
+      }
+    },
+    "gen-read-3": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "gen3 · 0g.hk",
+      "htmlMarkers": [
+        "note-editor-textarea"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "# md heading\n\nbody text",
+        "byteLength": 23
+      },
+      "kv": {
+        "n": "# md heading\n\nbody text",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "gen-create-4": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "gen4",
+        "x-raw-url": "https://gen4.0g.hk/raw",
+        "x-short-url": "https://gen4.0g.hk",
+        "x-target": "https://xn--fsq.com/x",
+        "x-ttl": "1d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 21,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "url",
+        "name": "gen4",
+        "ok": true,
+        "rawUrl": "https://gen4.0g.hk/raw",
+        "shortUrl": "https://gen4.0g.hk",
+        "target": "https://xn--fsq.com/x",
+        "ttl": "1d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://xn--fsq.com/x",
+        "byteLength": 21
+      },
+      "kv": {
+        "n": "https://xn--fsq.com/x",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1d",
+          "v": 1
+        }
+      },
+      "input": {
+        "content": "xn--fsq.com/x",
+        "ttl": "1d"
+      }
+    },
+    "gen-read-4": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "即将跳转 · 0g.hk",
+      "htmlMarkers": [
+        "interstitial-warning",
+        "interstitial-report"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://xn--fsq.com/x",
+        "byteLength": 21
+      },
+      "kv": {
+        "n": "https://xn--fsq.com/x",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1d",
+          "v": 1
+        }
+      }
+    },
+    "gen-create-5": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "gen5",
+        "x-raw-url": "https://gen5.0g.hk/raw",
+        "x-short-url": "https://gen5.0g.hk",
+        "x-target": "https://xn--fsq.com/x",
+        "x-ttl": "1d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 21,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "url",
+        "name": "gen5",
+        "ok": true,
+        "rawUrl": "https://gen5.0g.hk/raw",
+        "shortUrl": "https://gen5.0g.hk",
+        "target": "https://xn--fsq.com/x",
+        "ttl": "1d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://xn--fsq.com/x",
+        "byteLength": 21
+      },
+      "kv": {
+        "n": "https://xn--fsq.com/x",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1d",
+          "v": 1
+        }
+      },
+      "input": {
+        "content": "xn--fsq.com/x",
+        "ttl": "1d"
+      }
+    },
+    "gen-read-5": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "即将跳转 · 0g.hk",
+      "htmlMarkers": [
+        "interstitial-warning",
+        "interstitial-report"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://xn--fsq.com/x",
+        "byteLength": 21
+      },
+      "kv": {
+        "n": "https://xn--fsq.com/x",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1d",
+          "v": 1
+        }
+      }
+    },
+    "gen-create-6": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "gen6",
+        "x-raw-url": "https://gen6.0g.hk/raw",
+        "x-short-url": "https://gen6.0g.hk",
+        "x-target": "https://1.2.3.4",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 15,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "url",
+        "name": "gen6",
+        "ok": true,
+        "rawUrl": "https://gen6.0g.hk/raw",
+        "shortUrl": "https://gen6.0g.hk",
+        "target": "https://1.2.3.4",
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://1.2.3.4",
+        "byteLength": 15
+      },
+      "kv": {
+        "n": "https://1.2.3.4",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "input": {
+        "content": "1.2.3.4",
+        "ttl": ""
+      }
+    },
+    "gen-read-6": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "即将跳转 · 0g.hk",
+      "htmlMarkers": [
+        "interstitial-warning",
+        "interstitial-report"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://1.2.3.4",
+        "byteLength": 15
+      },
+      "kv": {
+        "n": "https://1.2.3.4",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "gen-create-7": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "gen7",
+        "x-raw-url": "https://gen7.0g.hk/raw",
+        "x-short-url": "https://gen7.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 13,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "gen7",
+        "ok": true,
+        "rawUrl": "https://gen7.0g.hk/raw",
+        "shortUrl": "https://gen7.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "trailing.dot.",
+        "byteLength": 13
+      },
+      "kv": {
+        "n": "trailing.dot.",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "input": {
+        "content": "trailing.dot.",
+        "ttl": ""
+      }
+    },
+    "gen-read-7": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "gen7 · 0g.hk",
+      "htmlMarkers": [
+        "note-editor-textarea"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "trailing.dot.",
+        "byteLength": 13
+      },
+      "kv": {
+        "n": "trailing.dot.",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "gen-create-8": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "gen8",
+        "x-raw-url": "https://gen8.0g.hk/raw",
+        "x-short-url": "https://gen8.0g.hk",
+        "x-ttl": "1d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 11,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "gen8",
+        "ok": true,
+        "rawUrl": "https://gen8.0g.hk/raw",
+        "shortUrl": "https://gen8.0g.hk",
+        "target": null,
+        "ttl": "1d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "hello world",
+        "byteLength": 11
+      },
+      "kv": {
+        "n": "hello world",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1d",
+          "v": 1
+        }
+      },
+      "input": {
+        "content": "hello world",
+        "ttl": "1d"
+      }
+    },
+    "gen-read-8": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "gen8 · 0g.hk",
+      "htmlMarkers": [
+        "note-editor-textarea"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "hello world",
+        "byteLength": 11
+      },
+      "kv": {
+        "n": "hello world",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1d",
+          "v": 1
+        }
+      }
+    },
+    "gen-create-9": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "gen9",
+        "x-raw-url": "https://gen9.0g.hk/raw",
+        "x-short-url": "https://gen9.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 15,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "gen9",
+        "ok": true,
+        "rawUrl": "https://gen9.0g.hk/raw",
+        "shortUrl": "https://gen9.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "example.com/a b",
+        "byteLength": 15
+      },
+      "kv": {
+        "n": "example.com/a b",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "input": {
+        "content": "example.com/a b",
+        "ttl": "7d"
+      }
+    },
+    "gen-read-9": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "gen9 · 0g.hk",
+      "htmlMarkers": [
+        "note-editor-textarea"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "example.com/a b",
+        "byteLength": 15
+      },
+      "kv": {
+        "n": "example.com/a b",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "edit-body-content-only": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbedit0",
+        "x-raw-url": "https://pbedit0.0g.hk/raw",
+        "x-short-url": "https://pbedit0.0g.hk",
+        "x-ttl": "1h"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 19,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbedit0",
+        "ok": true,
+        "rawUrl": "https://pbedit0.0g.hk/raw",
+        "shortUrl": "https://pbedit0.0g.hk",
+        "target": null,
+        "ttl": "1h"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "edited body content",
+        "byteLength": 19
+      },
+      "kv": {
+        "n": "edited body content",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1h",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 3600,
+      "metaCtChanged": true
+    },
+    "edit-body-ttl-only": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbedit1",
+        "x-raw-url": "https://pbedit1.0g.hk/raw",
+        "x-short-url": "https://pbedit1.0g.hk",
+        "x-ttl": "1d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 16,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbedit1",
+        "ok": true,
+        "rawUrl": "https://pbedit1.0g.hk/raw",
+        "shortUrl": "https://pbedit1.0g.hk",
+        "target": null,
+        "ttl": "1d"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "original content",
+        "byteLength": 16
+      },
+      "kv": {
+        "n": "original content",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 86400,
+      "metaCtChanged": true
+    },
+    "edit-body-renew-only": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbedit2",
+        "x-raw-url": "https://pbedit2.0g.hk/raw",
+        "x-short-url": "https://pbedit2.0g.hk",
+        "x-ttl": "1h"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 16,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbedit2",
+        "ok": true,
+        "rawUrl": "https://pbedit2.0g.hk/raw",
+        "shortUrl": "https://pbedit2.0g.hk",
+        "target": null,
+        "ttl": "1h"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "original content",
+        "byteLength": 16
+      },
+      "kv": {
+        "n": "original content",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1h",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 3600,
+      "metaCtChanged": true
+    },
+    "edit-body-content-and-ttl": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbedit3",
+        "x-raw-url": "https://pbedit3.0g.hk/raw",
+        "x-short-url": "https://pbedit3.0g.hk",
+        "x-ttl": "1h"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 15,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbedit3",
+        "ok": true,
+        "rawUrl": "https://pbedit3.0g.hk/raw",
+        "shortUrl": "https://pbedit3.0g.hk",
+        "target": null,
+        "ttl": "1h"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "edited with ttl",
+        "byteLength": 15
+      },
+      "kv": {
+        "n": "edited with ttl",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1h",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 3600,
+      "metaCtChanged": true
+    },
+    "edit-body-content-and-renew": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbedit4",
+        "x-raw-url": "https://pbedit4.0g.hk/raw",
+        "x-short-url": "https://pbedit4.0g.hk",
+        "x-ttl": "1h"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 17,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbedit4",
+        "ok": true,
+        "rawUrl": "https://pbedit4.0g.hk/raw",
+        "shortUrl": "https://pbedit4.0g.hk",
+        "target": null,
+        "ttl": "1h"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "edited with renew",
+        "byteLength": 17
+      },
+      "kv": {
+        "n": "edited with renew",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1h",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 3600,
+      "metaCtChanged": true
+    },
+    "edit-body-ttl-and-renew": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbedit5",
+        "x-raw-url": "https://pbedit5.0g.hk/raw",
+        "x-short-url": "https://pbedit5.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 16,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbedit5",
+        "ok": true,
+        "rawUrl": "https://pbedit5.0g.hk/raw",
+        "shortUrl": "https://pbedit5.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "original content",
+        "byteLength": 16
+      },
+      "kv": {
+        "n": "original content",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 604800,
+      "metaCtChanged": true
+    },
+    "edit-body-token-only-noop": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbedit6",
+        "x-raw-url": "https://pbedit6.0g.hk/raw",
+        "x-short-url": "https://pbedit6.0g.hk",
+        "x-ttl": "1h"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 16,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbedit6",
+        "ok": true,
+        "rawUrl": "https://pbedit6.0g.hk/raw",
+        "shortUrl": "https://pbedit6.0g.hk",
+        "target": null,
+        "ttl": "1h"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "original content",
+        "byteLength": 16
+      },
+      "kv": {
+        "n": "original content",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1h",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 3600,
+      "metaCtChanged": false
+    },
+    "edit-body-content-to-url": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "pbedit7",
+        "x-raw-url": "https://pbedit7.0g.hk/raw",
+        "x-short-url": "https://pbedit7.0g.hk",
+        "x-target": "https://github.com/catoncat/0g-hk",
+        "x-ttl": "1h"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 33,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "url",
+        "name": "pbedit7",
+        "ok": true,
+        "rawUrl": "https://pbedit7.0g.hk/raw",
+        "shortUrl": "https://pbedit7.0g.hk",
+        "target": "https://github.com/catoncat/0g-hk",
+        "ttl": "1h"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://github.com/catoncat/0g-hk",
+        "byteLength": 33
+      },
+      "kv": {
+        "n": "https://github.com/catoncat/0g-hk",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1h",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 3600,
+      "metaCtChanged": true
+    },
+    "edit-put-method": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbeditput",
+        "x-raw-url": "https://pbeditput.0g.hk/raw",
+        "x-short-url": "https://pbeditput.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 11,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbeditput",
+        "ok": true,
+        "rawUrl": "https://pbeditput.0g.hk/raw",
+        "shortUrl": "https://pbeditput.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "put content",
+        "byteLength": 11
+      },
+      "kv": {
+        "n": "put content",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 604800,
+      "metaCtChanged": true
+    },
+    "edit-form-urlencoded-body": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbeditform",
+        "x-raw-url": "https://pbeditform.0g.hk/raw",
+        "x-short-url": "https://pbeditform.0g.hk",
+        "x-ttl": "1d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 12,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbeditform",
+        "ok": true,
+        "rawUrl": "https://pbeditform.0g.hk/raw",
+        "shortUrl": "https://pbeditform.0g.hk",
+        "target": null,
+        "ttl": "1d"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "form content",
+        "byteLength": 12
+      },
+      "kv": {
+        "n": "form content",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 86400,
+      "metaCtChanged": true
+    },
+    "edit-html-accept-resultpage": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbedithtml",
+        "x-raw-url": "https://pbedithtml.0g.hk/raw",
+        "x-short-url": "https://pbedithtml.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 19,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbedithtml",
+        "ok": true,
+        "rawUrl": "https://pbedithtml.0g.hk/raw",
+        "shortUrl": "https://pbedithtml.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "html accept content",
+        "byteLength": 19
+      },
+      "kv": {
+        "n": "html accept content",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 604800,
+      "metaCtChanged": true
+    },
+    "edit-body-token-wins-over-header-token": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbeditprec",
+        "x-raw-url": "https://pbeditprec.0g.hk/raw",
+        "x-short-url": "https://pbeditprec.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 15,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbeditprec",
+        "ok": true,
+        "rawUrl": "https://pbeditprec.0g.hk/raw",
+        "shortUrl": "https://pbeditprec.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "body token wins",
+        "byteLength": 15
+      },
+      "kv": {
+        "n": "body token wins",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 604800,
+      "metaCtChanged": true
+    },
+    "edit-get-with-header-token-only-is-a-read": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbeditgethdr",
+        "x-raw-url": "https://pbeditgethdr.0g.hk/raw",
+        "x-short-url": "https://pbeditgethdr.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "content": "unchanged by a GET",
+        "contentLength": 18,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbeditgethdr",
+        "ok": true,
+        "rawUrl": "https://pbeditgethdr.0g.hk/raw",
+        "shortUrl": "https://pbeditgethdr.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "unchanged by a GET",
+        "byteLength": 18
+      },
+      "kv": {
+        "n": "unchanged by a GET",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 604800,
+      "metaCtChanged": false
+    },
+    "deprecated-get-query-edit": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbdepget",
+        "x-raw-url": "https://pbdepget.0g.hk/raw",
+        "x-short-url": "https://pbdepget.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 18,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbdepget",
+        "ok": true,
+        "rawUrl": "https://pbdepget.0g.hk/raw",
+        "shortUrl": "https://pbdepget.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "via deprecated GET",
+        "byteLength": 18
+      },
+      "kv": {
+        "n": "via deprecated GET",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 604800,
+      "metaCtChanged": true
+    },
+    "deprecated-post-query-edit": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbdeppost",
+        "x-raw-url": "https://pbdeppost.0g.hk/raw",
+        "x-short-url": "https://pbdeppost.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 19,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbdeppost",
+        "ok": true,
+        "rawUrl": "https://pbdeppost.0g.hk/raw",
+        "shortUrl": "https://pbdeppost.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "via deprecated POST",
+        "byteLength": 19
+      },
+      "kv": {
+        "n": "via deprecated POST",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 604800,
+      "metaCtChanged": true
+    },
+    "err-missing-token": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "missing_token",
+      "json": {
+        "error": {
+          "code": "missing_token",
+          "message": "Missing edit token"
+        },
+        "ok": false
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "error envelope target",
+        "byteLength": 21
+      },
+      "kv": {
+        "n": "error envelope target",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "err-invalid-token": {
+      "status": 403,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "invalid_token",
+      "json": {
+        "error": {
+          "code": "invalid_token",
+          "message": "Invalid edit token"
+        },
+        "ok": false
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "error envelope target",
+        "byteLength": 21
+      },
+      "kv": {
+        "n": "error envelope target",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "err-not-editable-no-meta": {
+      "status": 403,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "not_editable",
+      "json": {
+        "error": {
+          "code": "not_editable",
+          "message": "Not editable"
+        },
+        "ok": false
+      },
+      "kv": {
+        "n": null,
+        "m": null
+      }
+    },
+    "err-corrupt-meta": {
+      "status": 500,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "corrupt_meta",
+      "json": {
+        "error": {
+          "code": "corrupt_meta",
+          "message": "Corrupt meta"
+        },
+        "ok": false
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "corrupt meta note",
+        "byteLength": 17
+      },
+      "kv": {
+        "n": "corrupt meta note",
+        "m": {
+          "unparseable": true,
+          "length": 9
+        }
+      }
+    },
+    "err-not-found-content-missing": {
+      "status": 404,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "not_found",
+      "json": {
+        "error": {
+          "code": "not_found",
+          "message": "Not found"
+        },
+        "ok": false
+      },
+      "kv": {
+        "n": null,
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "err-invalid-ttl-create": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "invalid_ttl",
+      "json": {
+        "error": {
+          "code": "invalid_ttl",
+          "details": {
+            "allowed": [
+              "1h",
+              "1d",
+              "7d"
+            ]
+          },
+          "message": "Invalid ttl (use 1h/1d/7d)"
+        },
+        "ok": false
+      }
+    },
+    "err-invalid-ttl-create-html": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "invalid_ttl",
+      "json": {
+        "error": {
+          "code": "invalid_ttl",
+          "details": {
+            "allowed": [
+              "1h",
+              "1d",
+              "7d"
+            ]
+          },
+          "message": "Invalid ttl (use 1h/1d/7d)"
+        },
+        "ok": false
+      }
+    },
+    "err-invalid-ttl-edit": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "invalid_ttl",
+      "json": {
+        "error": {
+          "code": "invalid_ttl",
+          "details": {
+            "allowed": [
+              "1h",
+              "1d",
+              "7d"
+            ]
+          },
+          "message": "Invalid ttl (use 1h/1d/7d)"
+        },
+        "ok": false
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "error envelope target",
+        "byteLength": 21
+      },
+      "kv": {
+        "n": "error envelope target",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "err-invalid-name": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "invalid_name",
+      "json": {
+        "error": {
+          "code": "invalid_name",
+          "details": {
+            "name": "-bad-name"
+          },
+          "message": "Invalid name (小写字母/数字/-)"
+        },
+        "ok": false
+      }
+    },
+    "err-reserved-name": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "reserved_name",
+      "json": {
+        "error": {
+          "code": "reserved_name",
+          "details": {
+            "name": "admin"
+          },
+          "message": "Reserved name"
+        },
+        "ok": false
+      }
+    },
+    "err-name-taken-json": {
+      "status": 409,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "name_taken",
+      "json": {
+        "error": {
+          "code": "name_taken",
+          "details": {
+            "name": "pbtext"
+          },
+          "message": "Name already taken"
+        },
+        "ok": false
+      }
+    },
+    "err-name-taken-html": {
+      "status": 409,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "name_taken",
+      "json": {
+        "error": {
+          "code": "name_taken",
+          "details": {
+            "name": "pbtext"
+          },
+          "message": "Name already taken"
+        },
+        "ok": false
+      }
+    },
+    "err-url-too-long": {
+      "status": 413,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "url_too_long",
+      "json": {
+        "error": {
+          "code": "url_too_long",
+          "details": {
+            "maxLength": 2048
+          },
+          "message": "URL too long (max 2048)"
+        },
+        "ok": false
+      }
+    },
+    "err-text-too-long": {
+      "status": 413,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "text_too_long",
+      "json": {
+        "error": {
+          "code": "text_too_long",
+          "details": {
+            "maxLength": 24576
+          },
+          "message": "Text too long (max 24576)"
+        },
+        "ok": false
+      }
+    },
+    "err-malformed-url": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "malformed_url",
+      "json": {
+        "error": {
+          "code": "malformed_url",
+          "message": "Malformed URL"
+        },
+        "ok": false
+      }
+    },
+    "err-missing-content-json": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "missing_content",
+      "json": {
+        "error": {
+          "code": "missing_content",
+          "message": "content is required (body or ?c=)"
+        },
+        "ok": false
+      }
+    },
+    "err-missing-content-html-editor": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "missing_content",
+      "json": {
+        "error": {
+          "code": "missing_content",
+          "message": "content is required (body or ?c=)"
+        },
+        "ok": false
+      }
+    },
+    "err-bad-body": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "bad_body",
+      "json": {
+        "error": {
+          "code": "bad_body",
+          "message": "Failed to parse body: Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+        },
+        "ok": false
+      }
+    },
+    "err-rate-limited-create": {
+      "status": 429,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "rate_limited",
+      "json": {
+        "error": {
+          "code": "rate_limited",
+          "details": {
+            "limit": 10,
+            "windowSeconds": 60
+          },
+          "message": "Rate limit exceeded (10/min)"
+        },
+        "ok": false
+      }
+    },
+    "err-rate-limited-edit": {
+      "status": 429,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "rate_limited",
+      "json": {
+        "error": {
+          "code": "rate_limited",
+          "details": {
+            "limit": 10,
+            "windowSeconds": 60
+          },
+          "message": "Rate limit exceeded (10/min)"
+        },
+        "ok": false
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "error envelope target",
+        "byteLength": 21
+      },
+      "kv": {
+        "n": "error envelope target",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "gate-brand-blocked": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "brand_blocked",
+      "json": {
+        "error": {
+          "code": "brand_blocked",
+          "details": {
+            "term": "paypal"
+          },
+          "message": "Name contains a restricted brand/phishing term (paypal)"
+        },
+        "ok": false
+      }
+    },
+    "gate-shortener-blocked": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "shortener_blocked",
+      "json": {
+        "error": {
+          "code": "shortener_blocked",
+          "details": {
+            "host": "bit.ly"
+          },
+          "message": "Chaining URL shorteners is not allowed (bit.ly)"
+        },
+        "ok": false
+      }
+    },
+    "gate-order-brand-before-shortener": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "brand_blocked",
+      "json": {
+        "error": {
+          "code": "brand_blocked",
+          "details": {
+            "term": "paypal"
+          },
+          "message": "Name contains a restricted brand/phishing term (paypal)"
+        },
+        "ok": false
+      }
+    },
+    "gate-order-ratelimit-before-brand": {
+      "status": 429,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "rate_limited",
+      "json": {
+        "error": {
+          "code": "rate_limited",
+          "details": {
+            "limit": 10,
+            "windowSeconds": 60
+          },
+          "message": "Rate limit exceeded (10/min)"
+        },
+        "ok": false
+      }
+    },
+    "gate-shortener-blocked-on-edit": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "shortener_blocked",
+      "json": {
+        "error": {
+          "code": "shortener_blocked",
+          "details": {
+            "host": "bit.ly"
+          },
+          "message": "Chaining URL shorteners is not allowed"
+        },
+        "ok": false
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "original content",
+        "byteLength": 16
+      },
+      "kv": {
+        "n": "original content",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "gate-bad-scheme-javascript-unreachable": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbjsscheme",
+        "x-raw-url": "https://pbjsscheme.0g.hk/raw",
+        "x-short-url": "https://pbjsscheme.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 19,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbjsscheme",
+        "ok": true,
+        "rawUrl": "https://pbjsscheme.0g.hk/raw",
+        "shortUrl": "https://pbjsscheme.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "javascript:alert(1)",
+        "byteLength": 19
+      },
+      "kv": {
+        "n": "javascript:alert(1)",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "gate-bad-scheme-data-unreachable": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbdatascheme",
+        "x-raw-url": "https://pbdatascheme.0g.hk/raw",
+        "x-short-url": "https://pbdatascheme.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 16,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbdatascheme",
+        "ok": true,
+        "rawUrl": "https://pbdatascheme.0g.hk/raw",
+        "shortUrl": "https://pbdatascheme.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "data:text/html,x",
+        "byteLength": 16
+      },
+      "kv": {
+        "n": "data:text/html,x",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "create-json-201-text": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbc1",
+        "x-raw-url": "https://pbc1.0g.hk/raw",
+        "x-short-url": "https://pbc1.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 17,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbc1",
+        "ok": true,
+        "rawUrl": "https://pbc1.0g.hk/raw",
+        "shortUrl": "https://pbc1.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [
+        "body",
+        "header.x-edit-token",
+        "header.x-edit-url"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "created text note",
+        "byteLength": 17
+      },
+      "kv": {
+        "n": "created text note",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 604800
+    },
+    "create-json-201-url-allowlisted": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "url",
+        "x-name": "pbc2",
+        "x-raw-url": "https://pbc2.0g.hk/raw",
+        "x-short-url": "https://pbc2.0g.hk",
+        "x-target": "https://github.com/catoncat/0g-hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 33,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "url",
+        "name": "pbc2",
+        "ok": true,
+        "rawUrl": "https://pbc2.0g.hk/raw",
+        "shortUrl": "https://pbc2.0g.hk",
+        "target": "https://github.com/catoncat/0g-hk",
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [
+        "body",
+        "header.x-edit-token",
+        "header.x-edit-url"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://github.com/catoncat/0g-hk",
+        "byteLength": 33
+      },
+      "kv": {
+        "n": "https://github.com/catoncat/0g-hk",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "create-json-201-ttl-1h": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbc3",
+        "x-raw-url": "https://pbc3.0g.hk/raw",
+        "x-short-url": "https://pbc3.0g.hk",
+        "x-ttl": "1h"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 13,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbc3",
+        "ok": true,
+        "rawUrl": "https://pbc3.0g.hk/raw",
+        "shortUrl": "https://pbc3.0g.hk",
+        "target": null,
+        "ttl": "1h"
+      },
+      "tokenAppearsIn": [
+        "body",
+        "header.x-edit-token",
+        "header.x-edit-url"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "one hour note",
+        "byteLength": 13
+      },
+      "kv": {
+        "n": "one hour note",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1h",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 3600
+    },
+    "create-json-201-ttl-1d": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbc4",
+        "x-raw-url": "https://pbc4.0g.hk/raw",
+        "x-short-url": "https://pbc4.0g.hk",
+        "x-ttl": "1d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 12,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbc4",
+        "ok": true,
+        "rawUrl": "https://pbc4.0g.hk/raw",
+        "shortUrl": "https://pbc4.0g.hk",
+        "target": null,
+        "ttl": "1d"
+      },
+      "tokenAppearsIn": [
+        "body",
+        "header.x-edit-token",
+        "header.x-edit-url"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "one day note",
+        "byteLength": 12
+      },
+      "kv": {
+        "n": "one day note",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1d",
+          "v": 1
+        }
+      },
+      "ttlWindowSec": 86400
+    },
+    "create-html-resultpage": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbc5",
+        "x-raw-url": "https://pbc5.0g.hk/raw",
+        "x-short-url": "https://pbc5.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 16,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbc5",
+        "ok": true,
+        "rawUrl": "https://pbc5.0g.hk/raw",
+        "shortUrl": "https://pbc5.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [
+        "body",
+        "header.x-edit-token",
+        "header.x-edit-url"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "result page note",
+        "byteLength": 16
+      },
+      "kv": {
+        "n": "result page note",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "create-get-query-deprecated": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbc6",
+        "x-raw-url": "https://pbc6.0g.hk/raw",
+        "x-short-url": "https://pbc6.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 17,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbc6",
+        "ok": true,
+        "rawUrl": "https://pbc6.0g.hk/raw",
+        "shortUrl": "https://pbc6.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [
+        "body",
+        "header.x-edit-token",
+        "header.x-edit-url"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "created via query",
+        "byteLength": 17
+      },
+      "kv": {
+        "n": "created via query",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "create-form-body": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbc7",
+        "x-raw-url": "https://pbc7.0g.hk/raw",
+        "x-short-url": "https://pbc7.0g.hk",
+        "x-ttl": "1d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 12,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbc7",
+        "ok": true,
+        "rawUrl": "https://pbc7.0g.hk/raw",
+        "shortUrl": "https://pbc7.0g.hk",
+        "target": null,
+        "ttl": "1d"
+      },
+      "tokenAppearsIn": [
+        "body",
+        "header.x-edit-token",
+        "header.x-edit-url"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "form created",
+        "byteLength": 12
+      },
+      "kv": {
+        "n": "form created",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "1d",
+          "v": 1
+        }
+      }
+    },
+    "create-text-plain-body-random-name": {
+      "status": 201,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-edit-token": "<token>",
+        "x-edit-url": "<url-with-token>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "<random>",
+        "x-raw-url": "https://<random>.0g.hk/raw",
+        "x-short-url": "https://<random>.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "contentLength": 42,
+        "createdAt": "<iso>",
+        "editToken": "<token>",
+        "editUrl": "<url-with-token>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "<random>",
+        "ok": true,
+        "rawUrl": "https://<random>.0g.hk/raw",
+        "shortUrl": "https://<random>.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "tokenAppearsIn": [
+        "body",
+        "header.x-edit-token",
+        "header.x-edit-url"
+      ],
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "plain text body, server allocates the name",
+        "byteLength": 42
+      },
+      "kv": {
+        "n": "plain text body, server allocates the name",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "admin-stats-bearer": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "days": {
+          "day0": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day1": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day2": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day3": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day4": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day5": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day6": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          }
+        },
+        "ok": true
+      }
+    },
+    "admin-stats-key-param": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "days": {
+          "day0": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day1": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day2": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day3": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day4": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day5": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          },
+          "day6": {
+            "bad_scheme": "<count>",
+            "brand_blocked": "<count>",
+            "content_blocked": "<count>",
+            "shortener_blocked": "<count>",
+            "unsafe_target": "<count>"
+          }
+        },
+        "ok": true
+      }
+    },
+    "admin-note-detail": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "abuseCount": 0,
+        "content": "hello **bold** preservation",
+        "createdAt": "<iso>",
+        "disabled": false,
+        "disabledAt": null,
+        "disabledReason": null,
+        "exists": true,
+        "kind": "text",
+        "name": "pbtext",
+        "ok": true,
+        "ttl": "7d"
+      }
+    },
+    "admin-note-detail-missing": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "abuseCount": 0,
+        "content": null,
+        "createdAt": null,
+        "disabled": false,
+        "disabledAt": null,
+        "disabledReason": null,
+        "exists": false,
+        "kind": null,
+        "name": "pbmissing",
+        "ok": true,
+        "ttl": null
+      }
+    },
+    "admin-note-detail-bad-name": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "bad_name",
+      "json": {
+        "error": {
+          "code": "bad_name",
+          "message": "Missing/invalid name"
+        },
+        "ok": false
+      }
+    },
+    "admin-disable": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "disabled": true,
+        "name": "pbadmin",
+        "ok": true
+      },
+      "raw": {
+        "status": 410,
+        "contentType": "text/html;charset=utf-8",
+        "bytes": "<!DOCTYPE html><html lang=\"zh\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\"><meta name=\"robots\" content=\"noindex\"><title>内容已禁用 · 0g.hk</title><style>:root{color-scheme:light dark;--bg:#fafaf7;--surface:#fff;--surface-2:#f4f4ef;--text:#191918;--muted:#6b6b66;--faint:#a8a8a0;--border:#e7e5df;--border-strong:#d8d5cc;--accent:#111;--accent-fg:#fff;--ok:#2f7a3a;--warn:#8a5a00;--warn-bg:#fff7e0;--warn-fg:#5…<truncated>",
+        "byteLength": 6451
+      },
+      "kv": {
+        "n": "admin lifecycle note",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "kvExtra": {
+        "abuse:pbadmin": "2",
+        "d:pbadmin": {
+          "at": "<ms>",
+          "reason": "admin"
+        }
+      }
+    },
+    "admin-disable-then-read-410": {
+      "status": 410,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "disabled",
+      "json": {
+        "error": {
+          "code": "disabled",
+          "details": {
+            "name": "pbadmin"
+          },
+          "message": "Content disabled due to abuse reports"
+        },
+        "ok": false
+      }
+    },
+    "admin-enable-clears-both-keys": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "disabled": false,
+        "name": "pbadmin",
+        "ok": true
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "admin lifecycle note",
+        "byteLength": 20
+      },
+      "kv": {
+        "n": "admin lifecycle note",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "kvExtra": {
+        "abuse:pbadmin": null,
+        "d:pbadmin": null
+      }
+    },
+    "admin-enable-then-read-200": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers": "x-name,x-short-url,x-raw-url,x-kind,x-ttl,x-expires-at,x-target,x-edit-token,x-edit-url,x-created-at",
+        "x-created-at": "<iso>",
+        "x-expires-at": "<iso>",
+        "x-kind": "text",
+        "x-name": "pbadmin",
+        "x-raw-url": "https://pbadmin.0g.hk/raw",
+        "x-short-url": "https://pbadmin.0g.hk",
+        "x-ttl": "7d"
+      },
+      "code": null,
+      "json": {
+        "apiVersion": 1,
+        "content": "admin lifecycle note",
+        "contentLength": 20,
+        "createdAt": "<iso>",
+        "expiresAt": "<iso>",
+        "kind": "text",
+        "name": "pbadmin",
+        "ok": true,
+        "rawUrl": "https://pbadmin.0g.hk/raw",
+        "shortUrl": "https://pbadmin.0g.hk",
+        "target": null,
+        "ttl": "7d"
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "admin lifecycle note",
+        "byteLength": 20
+      },
+      "kv": {
+        "n": "admin lifecycle note",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      }
+    },
+    "admin-delete": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "deleted": true,
+        "name": "pbadmin",
+        "ok": true
+      },
+      "kv": {
+        "n": null,
+        "m": null
+      },
+      "kvExtra": {
+        "abuse:pbadmin": null,
+        "d:pbadmin": null
+      }
+    },
+    "admin-delete-then-read-404": {
+      "status": 404,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "not_found",
+      "json": {
+        "error": {
+          "code": "not_found",
+          "details": {
+            "name": "pbadmin"
+          },
+          "message": "Not found"
+        },
+        "ok": false
+      }
+    },
+    "admin-config-get": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "config": {
+          "rateLimit": 10,
+          "textMax": 24576,
+          "urlMax": 2048
+        },
+        "ok": true,
+        "schema": [
+          {
+            "default": 24576,
+            "help": "单条纯文本笔记允许的最大字节数。URL 短链不受这条限制。",
+            "key": "textMax",
+            "label": "笔记正文上限 (bytes)",
+            "max": 1048576,
+            "min": 1024,
+            "type": "int"
+          },
+          {
+            "default": 2048,
+            "help": "短链原始 URL 允许的最大字节数。",
+            "key": "urlMax",
+            "label": "URL 长度上限 (bytes)",
+            "max": 8192,
+            "min": 64,
+            "type": "int"
+          },
+          {
+            "default": 10,
+            "help": "create / edit 接口在 60 秒窗口内对单 IP 允许的最大请求次数。展示用，限流逻辑暂沿用常量。",
+            "key": "rateLimit",
+            "label": "速率上限 (次/分钟/IP)",
+            "max": 1000,
+            "min": 1,
+            "readOnly": true,
+            "type": "int"
+          }
+        ]
+      }
+    },
+    "admin-config-post": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "config": {
+          "rateLimit": 10,
+          "textMax": 20480,
+          "urlMax": 2048
+        },
+        "ok": true,
+        "overrides": {
+          "textMax": 20480
+        }
+      }
+    },
+    "admin-config-post-invalid": {
+      "status": 400,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "error": "validation_failed",
+        "errors": {
+          "textMax": "必须 ≥ 1024"
+        },
+        "ok": false
+      }
+    },
+    "admin-config-post-reset": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "config": {
+          "rateLimit": 10,
+          "textMax": 24576,
+          "urlMax": 2048
+        },
+        "ok": true,
+        "reset": true
+      }
+    },
+    "admin-unauthorized-bad-key": {
+      "status": 401,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "unauthorized",
+      "json": {
+        "error": {
+          "code": "unauthorized",
+          "message": "Invalid admin key"
+        },
+        "ok": false
+      }
+    },
+    "admin-login-page": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "登录 · 0g.hk admin",
+      "htmlMarkers": [
+        "admin-login-form"
+      ]
+    },
+    "admin-login-post": {
+      "status": 302,
+      "contentType": null,
+      "headers": {
+        "location": "/admin/dashboard",
+        "set-cookie": "admin_session=<value>; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=7200",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "location": "/admin/dashboard",
+      "code": null,
+      "bodyLength": 0,
+      "body": ""
+    },
+    "admin-dashboard-with-session": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "dashboard · 0g.hk admin",
+      "htmlMarkers": [
+        "admin-dashboard"
+      ]
+    },
+    "admin-dashboard-without-session": {
+      "status": 302,
+      "contentType": null,
+      "headers": {
+        "location": "/admin",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "location": "/admin",
+      "code": null,
+      "bodyLength": 0,
+      "body": ""
+    },
+    "admin-logout": {
+      "status": 302,
+      "contentType": null,
+      "headers": {
+        "location": "/admin",
+        "set-cookie": "admin_session=<value>; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0",
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "location": "/admin",
+      "code": null,
+      "bodyLength": 0,
+      "body": ""
+    },
+    "admin-login-post-wrong-password": {
+      "status": 401,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "登录 · 0g.hk admin",
+      "htmlMarkers": [
+        "admin-login-form"
+      ]
+    },
+    "admin-not-configured": {
+      "status": 503,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "admin_disabled",
+      "json": {
+        "error": {
+          "code": "admin_disabled",
+          "message": "Admin API not configured"
+        },
+        "ok": false
+      }
+    },
+    "options-apex-root": {
+      "status": 204,
+      "contentType": null,
+      "headers": {
+        "access-control-allow-headers": "content-type, accept, authorization",
+        "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+        "access-control-allow-origin": "*",
+        "access-control-max-age": "86400"
+      },
+      "code": null,
+      "bodyLength": 0,
+      "body": ""
+    },
+    "options-apex-exists": {
+      "status": 204,
+      "contentType": null,
+      "headers": {
+        "access-control-allow-headers": "content-type, accept, authorization",
+        "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+        "access-control-allow-origin": "*",
+        "access-control-max-age": "86400"
+      },
+      "code": null,
+      "bodyLength": 0,
+      "body": ""
+    },
+    "options-admin": {
+      "status": 204,
+      "contentType": null,
+      "headers": {
+        "access-control-allow-headers": "content-type, accept, authorization",
+        "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+        "access-control-allow-origin": "*",
+        "access-control-max-age": "86400"
+      },
+      "code": null,
+      "bodyLength": 0,
+      "body": ""
+    },
+    "options-subdomain-root": {
+      "status": 204,
+      "contentType": null,
+      "headers": {
+        "access-control-allow-headers": "content-type, accept, authorization",
+        "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+        "access-control-allow-origin": "*",
+        "access-control-max-age": "86400"
+      },
+      "code": null,
+      "bodyLength": 0,
+      "body": ""
+    },
+    "options-subdomain-raw": {
+      "status": 204,
+      "contentType": null,
+      "headers": {
+        "access-control-allow-headers": "content-type, accept, authorization",
+        "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+        "access-control-allow-origin": "*",
+        "access-control-max-age": "86400"
+      },
+      "code": null,
+      "bodyLength": 0,
+      "body": ""
+    },
+    "options-unknown-host": {
+      "status": 204,
+      "contentType": null,
+      "headers": {
+        "access-control-allow-headers": "content-type, accept, authorization",
+        "access-control-allow-methods": "GET, POST, PUT, OPTIONS",
+        "access-control-allow-origin": "*",
+        "access-control-max-age": "86400"
+      },
+      "code": null,
+      "bodyLength": 0,
+      "body": ""
+    },
+    "assets-llms-txt": {
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "headers": {},
+      "code": null,
+      "bodyLength": "<not-recorded>",
+      "bodyMarkers": [
+        "0g.hk"
+      ]
+    },
+    "assets-robots-txt": {
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "headers": {},
+      "code": null,
+      "bodyLength": "<not-recorded>",
+      "bodyMarkers": [
+        "Allow: /llms.txt",
+        "User-agent:"
+      ]
+    },
+    "apex-manual-for-non-browser": {
+      "status": 200,
+      "contentType": "text/plain; charset=utf-8",
+      "headers": {},
+      "code": null,
+      "bodyLength": "<not-recorded>",
+      "bodyMarkers": [
+        "0g.hk"
+      ]
+    },
+    "apex-editor-for-browser": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "0g.hk — 临时笔记 · 短链",
+      "htmlMarkers": [
+        "note-editor-textarea"
+      ]
+    },
+    "apex-unknown-path-json": {
+      "status": 404,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "not_found",
+      "json": {
+        "error": {
+          "code": "not_found",
+          "message": "Not found"
+        },
+        "ok": false
+      }
+    },
+    "apex-unknown-path-html": {
+      "status": 404,
+      "contentType": "text/plain;charset=UTF-8",
+      "headers": {},
+      "code": null,
+      "bodyLength": 9,
+      "body": "Not found"
+    },
+    "unknown-host-json": {
+      "status": 404,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": "not_found",
+      "json": {
+        "error": {
+          "code": "not_found",
+          "message": "Not found"
+        },
+        "ok": false
+      }
+    },
+    "abuse-report-first": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "deduped": false,
+        "disabled": false,
+        "name": "pbabuse",
+        "ok": true,
+        "reports": 1
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://untrusted.example/path?x=1",
+        "byteLength": 34
+      },
+      "kv": {
+        "n": "https://untrusted.example/path?x=1",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "kvExtra": {
+        "abuse:pbabuse": "1",
+        "d:pbabuse": null
+      }
+    },
+    "abuse-report-same-reporter-deduped": {
+      "status": 200,
+      "contentType": "application/json;charset=utf-8",
+      "headers": {
+        "access-control-allow-origin": "*"
+      },
+      "code": null,
+      "json": {
+        "deduped": true,
+        "disabled": false,
+        "name": "pbabuse",
+        "ok": true,
+        "reports": 1
+      },
+      "raw": {
+        "status": 200,
+        "contentType": "text/plain;charset=utf-8",
+        "bytes": "https://untrusted.example/path?x=1",
+        "byteLength": 34
+      },
+      "kv": {
+        "n": "https://untrusted.example/path?x=1",
+        "m": {
+          "ct": "<ms>",
+          "h": "<token-hash>",
+          "t": "7d",
+          "v": 1
+        }
+      },
+      "kvExtra": {
+        "abuse:pbabuse": "1",
+        "d:pbabuse": null
+      }
+    },
+    "abuse-report-html-surface": {
+      "status": 200,
+      "contentType": "text/html;charset=utf-8",
+      "headers": {
+        "x-content-type-options": "nosniff",
+        "x-frame-options": "DENY",
+        "x-robots-tag": "noindex, nofollow"
+      },
+      "code": null,
+      "htmlTitle": "举报已提交 · 0g.hk",
+      "htmlMarkers": [
+        "abuse-report-submitted"
+      ]
+    }
+  }
+}

@@ -30,6 +30,9 @@ curl -H 'accept: application/json' https://<name>.0g.hk/
 curl -X POST https://<name>.0g.hk/ \
   -H 'content-type: application/json' \
   -d '{"content":"new-content","token":"<editToken>"}'
+# token may also be sent as the `X-Edit-Token` request header instead of in
+# the body. The `?edit=<token>` query form still works but is deprecated:
+# query strings land in server logs.
 
 ## Limits
 

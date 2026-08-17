@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
 import { loadConfig } from "./config.js";
-import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName, makeBackground, type Background } from "./util.js";
+import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, resolveKind, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName, makeBackground, type Background } from "./util.js";
 import { aiModerate, checkSafeBrowsing } from "./moderation.js";
 import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, statusPage } from "./responses.js";
 import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./views/index.js";
@@ -36,7 +36,12 @@ async function handleCreate(req, env, url, bg: Background) {
     return editorPage();
   }
 
-  const urlMode = isUrl(rawContent);
+  // Write-time authority for the url-vs-text decision (D4). Everything below —
+  // the length limit chosen, the gates run, the persisted `k`, the JSON `kind`
+  // and the `x-kind` header — derives from this single value, so the branch
+  // taken and the branch recorded cannot disagree.
+  const kind = resolveKind(rawContent);
+  const urlMode = kind === "url";
   const content = urlMode ? normalizeUrl(rawContent) : rawContent;
   const cfg = await loadConfig(env);
   if (urlMode && content.length > cfg.urlMax) return replyError(req, url, "url_too_long", "URL too long (max " + cfg.urlMax + ")", 413, { maxLength: cfg.urlMax });
@@ -95,13 +100,15 @@ async function handleCreate(req, env, url, bg: Background) {
   const tokenHash = await sha256Base64Url(token);
   const createdAtMs = Date.now();
   const putOpts = ttlSec > 0 ? { expirationTtl: ttlSec } : {};
-  const meta = JSON.stringify({ v: 1, h: tokenHash, t: ttlKey, ct: createdAtMs });
+  // `v` stays 1: nothing in the codebase reads `meta.v`, and the feature
+  // detection the read path needs is *presence of `k`* (see `readKind`), so a
+  // version bump would add a predicate with no reader.
+  const meta = JSON.stringify({ v: 1, h: tokenHash, t: ttlKey, ct: createdAtMs, k: kind });
   await Promise.all([
     env.NOTES.put(key, content, putOpts),
     env.NOTES.put("m:" + name, meta, putOpts),
   ]);
 
-  const kind = urlMode ? "url" : "text";
   const target = urlMode ? content.trim() : null;
   const mh = noteMetaHeaders({ name, ttlKey, createdAtMs, kind, target, editToken: token });
 

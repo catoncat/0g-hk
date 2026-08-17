@@ -21,7 +21,10 @@ async function handleExists(env, url) {
   return jsonResponse({ valid: true, exists: existing !== null });
 }
 
-async function handleCreate(req, env, url) {
+// `bg` is annotated deliberately: under `strict: false` every other parameter is
+// implicitly `any`, so an explicit annotation on the new one is the only
+// compiler-level check that every call site actually passes it.
+async function handleCreate(req, env, url, bg: Background) {
   const bodyRes = await readBody(req);
   if (!bodyRes.ok) return replyError(req, url, "bad_body", bodyRes.err, 400);
   const bp = bodyRes.body || {};
@@ -54,23 +57,23 @@ async function handleCreate(req, env, url) {
 
   if (name) {
     const brand = isBrandSquatting(name);
-    if (brand) { recordReject(env, "brand_blocked", ip); return replyError(req, url, "brand_blocked", "Name contains a restricted brand/phishing term (" + brand + ")", 400, { term: brand }); }
+    if (brand) { bg.waitUntil(recordReject(env, "brand_blocked", ip)); return replyError(req, url, "brand_blocked", "Name contains a restricted brand/phishing term (" + brand + ")", 400, { term: brand }); }
   }
 
   if (urlMode) {
-    if (hasDangerousScheme(content)) { recordReject(env, "bad_scheme", ip); return replyError(req, url, "bad_scheme", "Dangerous URL scheme", 400); }
+    if (hasDangerousScheme(content)) { bg.waitUntil(recordReject(env, "bad_scheme", ip)); return replyError(req, url, "bad_scheme", "Dangerous URL scheme", 400); }
     const parsed = parseUrlSafe(content);
     if (parsed) {
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") { recordReject(env, "bad_scheme", ip); return replyError(req, url, "bad_scheme", "Only http/https URLs are allowed", 400, { scheme: parsed.protocol }); }
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") { bg.waitUntil(recordReject(env, "bad_scheme", ip)); return replyError(req, url, "bad_scheme", "Only http/https URLs are allowed", 400, { scheme: parsed.protocol }); }
       const blockedHost = isBlockedTargetHost(parsed.hostname);
-      if (blockedHost) { recordReject(env, "shortener_blocked", ip); return replyError(req, url, "shortener_blocked", "Chaining URL shorteners is not allowed (" + blockedHost + ")", 400, { host: blockedHost }); }
+      if (blockedHost) { bg.waitUntil(recordReject(env, "shortener_blocked", ip)); return replyError(req, url, "shortener_blocked", "Chaining URL shorteners is not allowed (" + blockedHost + ")", 400, { host: blockedHost }); }
     }
     const sb = await checkSafeBrowsing(env, content);
-    if (!sb.ok && sb.threats) { recordReject(env, "unsafe_target", ip); return replyError(req, url, "unsafe_target", "Target URL flagged unsafe", 400, { threats: sb.threats }); }
+    if (!sb.ok && sb.threats) { bg.waitUntil(recordReject(env, "unsafe_target", ip)); return replyError(req, url, "unsafe_target", "Target URL flagged unsafe", 400, { threats: sb.threats }); }
   }
 
   const mod = await aiModerate(env, urlMode ? "url" : "text", content, name);
-  if (!mod.ok) { recordReject(env, "content_blocked", ip); return replyError(req, url, "content_blocked", "Content classified as abusive by moderation", 400, { label: mod.label || "other", reason: mod.reason }); }
+  if (!mod.ok) { bg.waitUntil(recordReject(env, "content_blocked", ip)); return replyError(req, url, "content_blocked", "Content classified as abusive by moderation", 400, { label: mod.label || "other", reason: mod.reason }); }
 
   if (!name) {
     for (let i = 0; i < 6; i++) {
@@ -111,7 +114,7 @@ async function handleCreate(req, env, url) {
   return r;
 }
 
-async function handleEdit(req, env, sub, url) {
+async function handleEdit(req, env, sub, url, bg: Background) {
   const bodyRes = await readBody(req);
   if (!bodyRes.ok) return replyError(req, url, "bad_body", bodyRes.err, 400);
   const bp = bodyRes.body || {};
@@ -151,18 +154,18 @@ async function handleEdit(req, env, sub, url) {
 
   if (contentIn) {
     if (urlMode) {
-      if (hasDangerousScheme(content)) { recordReject(env, "bad_scheme", ip); return replyError(req, url, "bad_scheme", "Dangerous URL scheme", 400); }
+      if (hasDangerousScheme(content)) { bg.waitUntil(recordReject(env, "bad_scheme", ip)); return replyError(req, url, "bad_scheme", "Dangerous URL scheme", 400); }
       const parsed = parseUrlSafe(content);
       if (parsed) {
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") { recordReject(env, "bad_scheme", ip); return replyError(req, url, "bad_scheme", "Only http/https URLs are allowed", 400, { scheme: parsed.protocol }); }
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") { bg.waitUntil(recordReject(env, "bad_scheme", ip)); return replyError(req, url, "bad_scheme", "Only http/https URLs are allowed", 400, { scheme: parsed.protocol }); }
         const blockedHost = isBlockedTargetHost(parsed.hostname);
-        if (blockedHost) { recordReject(env, "shortener_blocked", ip); return replyError(req, url, "shortener_blocked", "Chaining URL shorteners is not allowed", 400, { host: blockedHost }); }
+        if (blockedHost) { bg.waitUntil(recordReject(env, "shortener_blocked", ip)); return replyError(req, url, "shortener_blocked", "Chaining URL shorteners is not allowed", 400, { host: blockedHost }); }
       }
       const sb = await checkSafeBrowsing(env, content);
-      if (!sb.ok && sb.threats) { recordReject(env, "unsafe_target", ip); return replyError(req, url, "unsafe_target", "Target URL flagged unsafe", 400, { threats: sb.threats }); }
+      if (!sb.ok && sb.threats) { bg.waitUntil(recordReject(env, "unsafe_target", ip)); return replyError(req, url, "unsafe_target", "Target URL flagged unsafe", 400, { threats: sb.threats }); }
     }
     const mod = await aiModerate(env, urlMode ? "url" : "text", content, sub);
-    if (!mod.ok) { recordReject(env, "content_blocked", ip); return replyError(req, url, "content_blocked", "Content classified as abusive by moderation", 400, { label: mod.label || "other", reason: mod.reason }); }
+    if (!mod.ok) { bg.waitUntil(recordReject(env, "content_blocked", ip)); return replyError(req, url, "content_blocked", "Content classified as abusive by moderation", 400, { label: mod.label || "other", reason: mod.reason }); }
   }
 
   const newTtlRaw = (bp.ttl || url.searchParams.get("ttl") || "").toLowerCase();
@@ -229,7 +232,7 @@ async function handleAbuseReport(req, env, sub, url) {
   });
 }
 
-async function handleSubdomain(req, env, host, url) {
+async function handleSubdomain(req, env, host, url, bg: Background) {
   const pathname = url.pathname;
   const sub = host.slice(0, -(BASE_HOST.length + 1));
   if (!NAME_RE.test(sub) || RESERVED.has(sub)) {
@@ -251,7 +254,7 @@ async function handleSubdomain(req, env, host, url) {
     });
   }
 
-  if (url.searchParams.has("edit") || req.method === "POST" || req.method === "PUT") return handleEdit(req, env, sub, url);
+  if (url.searchParams.has("edit") || req.method === "POST" || req.method === "PUT") return handleEdit(req, env, sub, url, bg);
 
   if (pathname === "/edit") {
     const [metaRaw, existing] = await Promise.all([
@@ -361,10 +364,10 @@ baseApp.all("/admin", (c) => handleAdmin(c.req.raw, c.env, new URL(c.req.url)));
 baseApp.all("/admin/*", (c) => handleAdmin(c.req.raw, c.env, new URL(c.req.url)));
 // /llms.txt, /llms-full.txt, /robots.txt, /favicon.svg are served from
 // public/ via the [assets] binding before the Worker runs (see wrangler.toml).
-baseApp.on(["POST", "PUT"], "/", (c) => withBackground(c, () => handleCreate(c.req.raw, c.env, new URL(c.req.url))));
+baseApp.on(["POST", "PUT"], "/", (c) => withBackground(c, (bg) => handleCreate(c.req.raw, c.env, new URL(c.req.url), bg)));
 baseApp.get("/", async (c) => {
   const u = new URL(c.req.url);
-  if (u.searchParams.has("c")) return withBackground(c, () => handleCreate(c.req.raw, c.env, u));
+  if (u.searchParams.has("c")) return withBackground(c, (bg) => handleCreate(c.req.raw, c.env, u, bg));
   // Non-browser clients (curl/LLM agents) get the canonical short docs.
   if (!isBrowserRequest(c.req.raw)) return c.env.ASSETS.fetch(new URL("/llms.txt", c.req.url));
   return editorPage({
@@ -385,7 +388,7 @@ baseApp.notFound((c) => {
 subApp.all("*", (c) => {
   const u = new URL(c.req.url);
   const host = u.hostname.toLowerCase();
-  return withBackground(c, () => handleSubdomain(c.req.raw, c.env, host, u));
+  return withBackground(c, (bg) => handleSubdomain(c.req.raw, c.env, host, u, bg));
 });
 
 export default {

@@ -4,6 +4,15 @@ compatibility_date = "2024-12-01"
 account_id = "6087736750ab274809ddad92ed5e3ac6"
 workers_dev = false
 
+# Public (non-secret) bindings. TURNSTILE_SITEKEY is the Turnstile *site* key,
+# which is designed to be embedded in the page HTML, so it is safe in the repo.
+# Its counterpart TURNSTILE_SECRET stays a secret (`wrangler secret put
+# TURNSTILE_SECRET`) and is deliberately absent here. An empty site key means
+# "no challenge widget": interstitialPage() omits the widget and
+# verifyTurnstile() no-ops, which is the current deployment's behavior.
+[vars]
+TURNSTILE_SITEKEY = ""
+
 [[kv_namespaces]]
 binding = "NOTES"
 id = "5abeab410f7841eeb5b06942a3cfa42b"

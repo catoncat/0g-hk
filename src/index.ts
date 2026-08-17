@@ -2,10 +2,10 @@
 // Presentation, gates, storage, and admin are in sibling modules.
 import { Hono } from "hono";
 import { logger } from "hono/logger";
-import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
+import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, RATE_LIMIT, API_VERSION, ABUSE_AUTO_QUARANTINE, ABUSE_GROUP_TTL_SEC, QUARANTINE_MAX_TTL_SEC, QUARANTINE_MIN_TTL_SEC, ABUSE_EMAIL } from "./constants.js";
 import { loadConfig } from "./config.js";
-import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, resolveKind, readKind, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName, makeBackground, type Background } from "./util.js";
-import { aiModerate, checkSafeBrowsing } from "./moderation.js";
+import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, esc, resolveKind, readKind, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, redactLogLine, reporterGroup, shortUrlFor, expiresAtIso, normalizeName, makeBackground, type Background } from "./util.js";
+import { aiModerate, checkSafeBrowsing, verifyTurnstile } from "./moderation.js";
 import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, statusPage } from "./responses.js";
 import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./views/index.js";
 import { handleAdmin } from "./admin.js";
@@ -126,7 +126,15 @@ async function handleEdit(req, env, sub, url, bg: Background) {
   if (!bodyRes.ok) return replyError(req, url, "bad_body", bodyRes.err, 400);
   const bp = bodyRes.body || {};
 
-  const token = bp.token || url.searchParams.get("edit") || "";
+  // D1 (1.4, 2.3, 2.4): three accepted transports, one validation. The order is
+  // BODY FIRST, deliberately — it means every request shape that exists today
+  // resolves to exactly the token it resolves to now, so preservation is
+  // observed rather than argued. (design.md rejects the more idiomatic
+  // header-first order for one reason: it would change the outcome of a request
+  // carrying both a body token and a DIFFERENT header token, an input that sits
+  // outside every bug condition.) `?edit=` stays last and stays supported: it is
+  // deprecated, not removed, and it is now redacted from logs like the others.
+  const token = bp.token || req.headers.get("x-edit-token") || url.searchParams.get("edit") || "";
   let contentIn = bp.content || url.searchParams.get("c") || "";
   const renewFlag = bp.renew != null || url.searchParams.has("renew");
   if (!token) return replyError(req, url, "missing_token", "Missing edit token", 400);
@@ -224,11 +232,62 @@ async function handleEdit(req, env, sub, url, bg: Background) {
   return r;
 }
 
+/**
+ * Seconds of life the note itself has left, from its own `m:<name>` record.
+ *
+ * Returns QUARANTINE_MAX_TTL_SEC when meta is missing, unparseable, or carries
+ * no usable `t` / `ct` — the safe direction, since a missing note cannot be
+ * over-protected and the value is clamped to a note lifetime anyway. May return
+ * a negative number for an already-expired record; `quarantineTtlSec` clamps it.
+ */
+export function remainingNoteTtlSec(meta) {
+  if (meta == null || typeof meta !== "object") return QUARANTINE_MAX_TTL_SEC;
+  const ttlSec = TTL_OPTIONS[meta.t];
+  const ct = meta.ct;
+  if (!ttlSec || typeof ct !== "number" || !Number.isFinite(ct) || ct <= 0) return QUARANTINE_MAX_TTL_SEC;
+  return Math.floor((ct + ttlSec * 1000 - Date.now()) / 1000);
+}
+
+/**
+ * The automatic quarantine's lifetime: the note's own remaining TTL, clamped
+ * into [QUARANTINE_MIN_TTL_SEC, QUARANTINE_MAX_TTL_SEC] (2.16).
+ *
+ * The clamp is what bounds the marker. The lower bound keeps a quarantine from
+ * being written with a zero or negative TTL (which KV would reject) when the
+ * note is about to expire on its own; the upper bound is the longest note TTL,
+ * so the marker can never outlive the content the way the old 365-day disable
+ * did (1.13).
+ */
+export function quarantineTtlSec(meta) {
+  const remaining = remainingNoteTtlSec(meta);
+  if (!Number.isFinite(remaining)) return QUARANTINE_MAX_TTL_SEC;
+  return Math.min(QUARANTINE_MAX_TTL_SEC, Math.max(QUARANTINE_MIN_TTL_SEC, remaining));
+}
+
 async function handleAbuseReport(req, env, sub, url) {
   const ip = req.headers.get("cf-connecting-ip") || "0";
-  const ipTrunc = ip.split(":").slice(0, 4).join(":").split(".").slice(0, 3).join(".");
-  const day = new Date().toISOString().slice(0, 10);
-  const dedupeKey = "abuse-dedupe:" + sub + ":" + day + ":" + (await sha256Base64Url(ipTrunc)).slice(0, 12);
+
+  // D3 (1.9, 1.12, 2.12): verify the human-verification challenge FIRST, before
+  // any read or write of the counter, so an unverified report is fully inert —
+  // it cannot advance `abuse:<sub>`, cannot burn the reporter group's one
+  // dedupe slot, and cannot contribute to the quarantine threshold.
+  //
+  // `verifyTurnstile` returns {ok:true} when TURNSTILE_SECRET is unset, so an
+  // unconfigured deployment (including the test environment) behaves exactly as
+  // before (2.13); it also fails open on a network error, deliberately, since a
+  // Cloudflare outage must not silence abuse reporting.
+  const bodyRes = await readBody(req);
+  const tsToken = req.headers.get("x-turnstile-token") || (bodyRes.ok && bodyRes.body && bodyRes.body.turnstile) || "";
+  const v = await verifyTurnstile(env, tsToken, ip);
+  if (!v.ok) return replyError(req, url, "challenge_failed", "Human verification failed", 403, { reason: v.reason });
+
+  // One reporter == one address RANGE, canonicalized (2.17). The `:<day>:`
+  // segment the key used to carry is GONE and the TTL now matches the counter's,
+  // so a group counts at most once per note per counter lifetime — which is what
+  // makes ABUSE_AUTO_QUARANTINE mean "10 distinct ranges" rather than "10
+  // requests". The key PREFIX is unchanged, so stale day-scoped keys simply
+  // expire, and a repeat report from the same group still answers deduped:true.
+  const dedupeKey = "abuse-dedupe:" + sub + ":" + (await sha256Base64Url(reporterGroup(ip))).slice(0, 12);
   const counterKey = "abuse:" + sub;
   const [already, counterRaw] = await Promise.all([
     env.NOTES.get(dedupeKey),
@@ -239,11 +298,24 @@ async function handleAbuseReport(req, env, sub, url) {
   if (!already) {
     count += 1;
     const puts = [
-      env.NOTES.put(counterKey, String(count), { expirationTtl: 30 * 86400 }),
-      env.NOTES.put(dedupeKey, "1", { expirationTtl: 86400 }),
+      env.NOTES.put(counterKey, String(count), { expirationTtl: ABUSE_GROUP_TTL_SEC }),
+      env.NOTES.put(dedupeKey, "1", { expirationTtl: ABUSE_GROUP_TTL_SEC }),
     ];
-    if (count >= ABUSE_AUTO_DISABLE) {
-      puts.push(env.NOTES.put("d:" + sub, JSON.stringify({ reason: "community_reports", count, at: Date.now() }), { expirationTtl: 365 * 86400 }));
+    if (count >= ABUSE_AUTO_QUARANTINE) {
+      // A bounded, reversible QUARANTINE, not a 365-day disable (2.15, 2.16).
+      // The key stays `d:<sub>`, so the 410 read path and /admin/enable's
+      // delete of both `d:` and `abuse:` keep working untouched.
+      let noteMeta: any = null;
+      try {
+        const metaRaw = await env.NOTES.get("m:" + sub);
+        noteMeta = metaRaw ? JSON.parse(metaRaw) : null;
+      } catch {}
+      const ttl = quarantineTtlSec(noteMeta);
+      const now = Date.now();
+      // `exp` is stored INSIDE the payload because KV does not expose a
+      // record's remaining TTL on read: it is the only way the bound is
+      // observable to the 410 page, to the admin detail view, and to a test.
+      puts.push(env.NOTES.put("d:" + sub, JSON.stringify({ reason: "community_reports", auto: true, count, at: now, exp: now + ttl * 1000 }), { expirationTtl: ttl }));
       disabled = true;
     }
     await Promise.all(puts);
@@ -270,11 +342,39 @@ async function handleSubdomain(req, env, host, url, bg: Background) {
 
   const disabledRaw = await env.NOTES.get("d:" + sub);
   if (disabledRaw) {
-    if (wantsJson(req, url)) return jsonError("disabled", "Content disabled due to abuse reports", 410, { name: sub });
+    // Owner recourse for an AUTOMATIC quarantine (2.16): the marker is parsed so
+    // the owner can be told when it lifts by itself, on top of the appeal route
+    // that was already here. There is deliberately no self-serve un-quarantine
+    // endpoint — for a genuinely malicious note the edit-token holder IS the
+    // abuser, so token-gated self-clearing would defeat the mechanism; the
+    // documented path is expiry-plus-appeal.
+    //
+    // An ADMIN marker (no `auto`, and every marker written before this change)
+    // renders byte-identically to before, and the status (410) and error code
+    // ("disabled") are unchanged for both kinds.
+    let marker: any = null;
+    try { marker = JSON.parse(disabledRaw); } catch {}
+    const auto = !!(marker && marker.auto === true);
+    const until = auto && typeof marker.exp === "number" && Number.isFinite(marker.exp) ? new Date(marker.exp).toISOString() : null;
+    if (wantsJson(req, url)) {
+      const details: any = { name: sub };
+      if (auto) {
+        details.auto = true;
+        if (until) details.until = until;
+      }
+      return jsonError("disabled", "Content disabled due to abuse reports", 410, details);
+    }
     return statusPage({
       title: "内容已禁用",
       message: "该短链/笔记因举报被系统自动禁用。",
-      detailsHtml: '<p class="muted">若系误判，请通过 <a href="mailto:' + ABUSE_EMAIL + '">' + ABUSE_EMAIL + "</a> 申诉。</p>",
+      detailsHtml:
+        (auto
+          ? '<p class="muted">这是社区举报触发的<strong>临时隔离</strong>' +
+            (until ? '，将于 <span class="mono">' + esc(until) + "</span> 自动解除" : "") +
+            "。</p>"
+          : "") +
+        '<p class="muted">若系误判，请通过 <a href="mailto:' + ABUSE_EMAIL + '">' + ABUSE_EMAIL + "</a> 申诉" +
+        (auto ? "，管理员可提前解除" : "") + "。</p>",
       tone: "warn",
       status: 410,
     });
@@ -332,7 +432,10 @@ async function handleSubdomain(req, env, host, url, bg: Background) {
     if (isAllowedTarget(target)) {
       return new Response(null, { status: 302, headers: Object.assign({ location: target }, mh) });
     }
-    return interstitialPage(sub, target);
+    // D3 (2.18): the challenge widget is rendered only when a site key is
+    // configured. `TURNSTILE_SITEKEY` defaults to "" in wrangler.toml, so an
+    // unconfigured deployment renders the page exactly as before.
+    return interstitialPage(sub, target, env.TURNSTILE_SITEKEY);
   }
   return notePage(sub, content);
 }
@@ -349,8 +452,16 @@ function corsPreflight() {
 const baseApp = new Hono<{ Bindings: Env }>();
 const subApp = new Hono<{ Bindings: Env }>();
 
-baseApp.use("*", logger());
-subApp.use("*", logger());
+// D1 (1.2, 2.2, 2.3): hono's logger() builds `path = url.slice(url.indexOf("/", 8))`
+// — the path PLUS the query string — and hands the whole line to its print
+// function, which defaults to console.log. Substituting a print function that
+// runs `redactLogLine` first is therefore a single seam covering the incoming
+// (`<--`) and outgoing (`-->`) lines of EVERY route, including the deprecated
+// `?edit=` GET form and `/admin/*?key=`. Response bodies and headers are
+// untouched: this changes what is logged, never what is served.
+const redactedPrint = (message: string, ...rest: string[]) => console.log(redactLogLine(message), ...rest);
+baseApp.use("*", logger(redactedPrint));
+subApp.use("*", logger(redactedPrint));
 
 const onError = (err: Error, c: any) => {
   console.error("unhandled", (err && err.stack) || err);

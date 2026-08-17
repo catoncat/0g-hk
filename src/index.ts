@@ -116,7 +116,7 @@ async function handleCreate(req, env, url, bg: Background) {
     return jsonResponse({ ok: true, apiVersion: API_VERSION, name, kind, shortUrl: shortUrlFor(name), rawUrl: shortUrlFor(name) + "/raw", editToken: token, editUrl: shortUrlFor(name) + "/edit#t=" + token, ttl: ttlKey, createdAt: new Date(createdAtMs).toISOString(), expiresAt: expiresAtIso(ttlKey, createdAtMs), target, contentLength: content.length }, 201, mh);
   }
 
-  const r = resultPage(name, content, "created", ttlKey, token);
+  const r = resultPage(name, content, "created", ttlKey, token, kind);
   for (const k in mh) r.headers.set(k, mh[k]);
   return r;
 }
@@ -219,7 +219,7 @@ async function handleEdit(req, env, sub, url, bg: Background) {
     return jsonResponse({ ok: true, apiVersion: API_VERSION, name: sub, kind, shortUrl: shortUrlFor(sub), rawUrl: shortUrlFor(sub) + "/raw", ttl: ttlKey, createdAt: new Date(createdAtMs).toISOString(), expiresAt: expiresAtIso(ttlKey, createdAtMs), target, contentLength: content.length }, 200, mh);
   }
 
-  const r = resultPage(sub, content, "updated", ttlKey, null);
+  const r = resultPage(sub, content, "updated", ttlKey, null, kind);
   for (const k in mh) r.headers.set(k, mh[k]);
   return r;
 }

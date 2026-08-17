@@ -4,7 +4,7 @@
 // + target preview).
 import type { FC } from "hono/jsx";
 import { BASE_HOST } from "../constants.js";
-import { isUrl, isAllowedTarget, parseUrlSafe } from "../util.js";
+import { resolveKind, isAllowedTarget, parseUrlSafe, type NoteKind } from "../util.js";
 import { html } from "../responses.js";
 import { Layout, renderDoc } from "./Layout.js";
 
@@ -54,12 +54,18 @@ type ResultProps = {
   mode: "created" | "updated";
   ttlKey: string | null;
   editToken: string | null;
+  // Optional and trailing: the two production call sites hold the kind the
+  // writer actually persisted and pass it, so the confirmation page can no
+  // longer disagree with the branch the read path will take (1.17, 2.24).
+  // When it is absent the page falls back to the write-time derivation, which
+  // is exactly the pre-fix behavior.
+  kind?: NoteKind;
 };
 
-const Result: FC<ResultProps> = ({ name, content, mode, ttlKey, editToken }) => {
+const Result: FC<ResultProps> = ({ name, content, mode, ttlKey, editToken, kind }) => {
   const short = "https://" + name + "." + BASE_HOST;
   const editUrl = editToken ? short + "/edit#t=" + editToken : null;
-  const link = isUrl(content);
+  const link = (kind ?? resolveKind(content)) === "url";
   const allowed = link && isAllowedTarget(content);
   const header = mode === "updated" ? "已更新" : "已创建";
   const ttlDisplay = ttlKey ? (TTL_LABEL[ttlKey] || ttlKey) : null;
@@ -144,8 +150,9 @@ export function resultPage(
   mode: "created" | "updated",
   ttlKey: string | null,
   editToken: string | null,
+  kind?: NoteKind,
 ) {
   return html(renderDoc(
-    <Result name={name} content={content} mode={mode} ttlKey={ttlKey} editToken={editToken} />,
+    <Result name={name} content={content} mode={mode} ttlKey={ttlKey} editToken={editToken} kind={kind} />,
   ));
 }

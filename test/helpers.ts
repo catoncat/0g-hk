@@ -86,6 +86,69 @@ export function expectRedactedLogPresent(lines: string[]): void {
 }
 
 // ---------------------------------------------------------------------------
+// Observing the Worker's OWN log lines (added in task 2)
+// ---------------------------------------------------------------------------
+//
+// captureLogs() above spies on the console of the TEST isolate. That is not
+// enough to observe hono's logger(), for two independent reasons discovered by
+// direct experiment in task 2:
+//
+//  1. `SELF.fetch` dispatches to the Worker under test in a SEPARATE isolate,
+//     so a spy installed in the test isolate never sees its console at all.
+//  2. hono's `logger(fn = console.log)` binds `console.log` as a DEFAULT
+//     PARAMETER, evaluated when `logger()` is called — i.e. while src/index.ts
+//     is being evaluated, which the pool does at isolate boot, before any test
+//     module body runs. Even in one isolate, a spy installed later is invisible.
+//
+// The fix is to obtain a SECOND, freshly-evaluated instance of the Worker entry
+// module in the test isolate, with a console.log trampoline already installed so
+// that `logger()` binds an indirection that re-reads `console.log` on every
+// call. A later `vi.spyOn(console, "log")` is then observed normally.
+//
+// `?logspy=1` makes the module id distinct so the bundler re-evaluates
+// src/index.ts (its imports stay cached). `vi.resetModules()` was tried first
+// and rejected: it tears down the pool's own worker instance and every
+// subsequent SELF.fetch answers 500.
+//
+// The returned fetcher shares `env` with SELF, so KV state seeded through
+// SELF.fetch is visible to it and vice versa.
+
+export interface WorkerModule {
+  fetch(req: Request, env: any, ctx?: any): Promise<Response>;
+}
+
+let trampolineInstalled = false;
+let logCaptureWorker: Promise<WorkerModule> | null = null;
+
+function installLogTrampoline(): void {
+  if (trampolineInstalled) return;
+  trampolineInstalled = true;
+  const boundReal = console.log.bind(console);
+  const trampoline = (...args: unknown[]): void => {
+    // No spy installed -> behave exactly like console.log.
+    // Spy installed  -> route through it, so captureLogs() sees the line.
+    if (console.log === (trampoline as any)) boundReal(...args);
+    else (console.log as any)(...args);
+  };
+  console.log = trampoline as any;
+}
+
+/**
+ * A Worker fetcher whose hono logger() output is visible to captureLogs().
+ *
+ * Use this INSTEAD of SELF.fetch for the one request whose log line is under
+ * assertion; use SELF.fetch for everything else (seeding, reading back), since
+ * both share `env`.
+ */
+export function workerWithLogCapture(): Promise<WorkerModule> {
+  if (!logCaptureWorker) {
+    installLogTrampoline();
+    logCaptureWorker = import("../src/index.js?logspy=1").then((m: any) => m.default as WorkerModule);
+  }
+  return logCaptureWorker;
+}
+
+// ---------------------------------------------------------------------------
 // Per-request client addresses
 // ---------------------------------------------------------------------------
 

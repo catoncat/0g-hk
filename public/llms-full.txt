@@ -23,6 +23,12 @@ The `content` is either:
 Every successful create returns an `editToken` that must be presented to edit
 or delete the note within its TTL.
 
+The service does not store edit tokens in plaintext. If an edit token is lost,
+it cannot be recovered from the public API or from KV metadata. A deployment
+administrator who controls the Cloudflare KV namespace may issue a fresh edit
+token by resetting the stored token hash for that note while preserving its
+content and TTL.
+
 ## TTL
 
 Accepted values: 1h, 1d, 7d. Default: 7d.

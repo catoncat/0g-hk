@@ -26,6 +26,13 @@ Rules:
 - If curl gets a Cloudflare challenge, use the browser UI and verify the resulting public URL.
 - Do not commit `links.jsonl`, copied tokens, or generated local history.
 
+Lost edit token / web-created notes:
+- First search the local ledger with `scripts/0ghk-history.mjs --list --search <name>`; web-created notes often have no local ledger entry.
+- For live 0g.hk production, verify the Worker/KV truth from the source checkout before touching data: `wrangler.toml` gives the Worker account and `NOTES` namespace, and current code stores note bodies at `n:<name>` plus metadata at `m:<name>`.
+- The original edit token cannot be recovered from KV. Metadata stores only a hash (`m:<name>.h`), TTL key (`t`), and created/renewed timestamp (`ct`).
+- If the user owns the deployment and explicitly asks to recover access, use the Cloudflare ops lane (`cf-ops` / `wrangler`) to read only `m:<name>` and `n:<name>`, confirm the note exists, then reset access by writing a fresh token hash into `m:<name>` while preserving `t`, `ct`, and the remaining KV expiration. Do not dump unrelated KV keys.
+- Return only the new `https://<name>.0g.hk/edit#t=<token>` link to the authorized user. Do not log the token into tracked files, memory, or public docs.
+
 Local ledger:
 - Append-only JSONL.
 - On create, record `event`, `name`, `short_url`, `raw_url`, `edit_token`, `edit_url`, `ttl`, `expires_at`, `title`, `source`, and `recorded_at`.

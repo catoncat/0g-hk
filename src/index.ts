@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { BASE_HOST, NAME_RE, RESERVED, TTL_OPTIONS, DEFAULT_TTL, RATE_LIMIT, API_VERSION, ABUSE_AUTO_DISABLE, ABUSE_EMAIL } from "./constants.js";
 import { loadConfig } from "./config.js";
-import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, isUrl, resolveKind, readKind, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName, makeBackground, type Background } from "./util.js";
+import { isBrandSquatting, isBlockedTargetHost, hasDangerousScheme, randomName, genToken, sha256Base64Url, ctEq, resolveKind, readKind, normalizeUrl, parseUrlSafe, isAllowedTarget, rateLimit, recordReject, shortUrlFor, expiresAtIso, normalizeName, makeBackground, type Background } from "./util.js";
 import { aiModerate, checkSafeBrowsing } from "./moderation.js";
 import { html, jsonResponse, jsonError, replyError, wantsJson, isBrowserRequest, noteMetaHeaders, readBody, statusPage } from "./responses.js";
 import { editorPage, resultPage, notePage, interstitialPage, editNotePage, notFoundPage } from "./views/index.js";
@@ -310,8 +310,11 @@ async function handleSubdomain(req, env, host, url, bg: Background) {
   try { meta = metaRaw ? JSON.parse(metaRaw) : {}; } catch {}
   const ttlKey = TTL_OPTIONS[meta.t] !== undefined ? meta.t : DEFAULT_TTL;
   const createdAtMs = meta.ct || 0;
-  const urlMode = isUrl(content);
-  const kind = urlMode ? "url" : "text";
+  // D4 (2.20): the branch below follows the *persisted* kind, not a re-derivation
+  // from content. `readKind` falls back to `isUrl(content)` only when `m:<sub>`
+  // carries no usable `k`, so legacy records keep behaving exactly as before (2.21).
+  const kind = readKind(meta, content);
+  const urlMode = kind === "url";
   const target = urlMode ? content.trim() : null;
   const mh = noteMetaHeaders({ name: sub, ttlKey, createdAtMs, kind, target });
 

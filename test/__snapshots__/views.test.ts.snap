@@ -483,7 +483,7 @@ body{padding-top:clamp(20px,6vw,56px)}
 .url-card{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.4rem;align-items:stretch;border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:.4rem .4rem .4rem .85rem;margin-bottom:1.4rem}
 .url-card .short-link{display:flex;align-items:center;min-width:0;font-family:var(--mono);font-size:.95rem;color:var(--text);text-decoration:none;word-break:break-all;line-height:1.35;padding:.3rem 0}
 @media(hover:hover){.url-card .short-link:hover{opacity:.75}}
-.url-card .btn{min-height:36px;padding:0 .9rem;font-size:.85rem;white-space:nowrap}
+.url-card .btn{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:36px;padding:0 .9rem;font-size:.85rem;line-height:1;white-space:nowrap}
 @media(max-width:520px){.url-card{grid-template-columns:1fr 1fr;padding:.6rem}.url-card .short-link{grid-column:1/-1;padding:.4rem .25rem .35rem}.url-card .btn{justify-content:center}}
 .edit-block{margin:0 0 1.4rem;text-align:center}
 .edit-block .edit-btn{width:100%;min-height:44px;font-size:.9rem;background:var(--surface)}
@@ -545,7 +545,7 @@ body{padding-top:clamp(20px,6vw,56px)}
 .url-card{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.4rem;align-items:stretch;border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:.4rem .4rem .4rem .85rem;margin-bottom:1.4rem}
 .url-card .short-link{display:flex;align-items:center;min-width:0;font-family:var(--mono);font-size:.95rem;color:var(--text);text-decoration:none;word-break:break-all;line-height:1.35;padding:.3rem 0}
 @media(hover:hover){.url-card .short-link:hover{opacity:.75}}
-.url-card .btn{min-height:36px;padding:0 .9rem;font-size:.85rem;white-space:nowrap}
+.url-card .btn{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:36px;padding:0 .9rem;font-size:.85rem;line-height:1;white-space:nowrap}
 @media(max-width:520px){.url-card{grid-template-columns:1fr 1fr;padding:.6rem}.url-card .short-link{grid-column:1/-1;padding:.4rem .25rem .35rem}.url-card .btn{justify-content:center}}
 .edit-block{margin:0 0 1.4rem;text-align:center}
 .edit-block .edit-btn{width:100%;min-height:44px;font-size:.9rem;background:var(--surface)}
@@ -607,7 +607,7 @@ body{padding-top:clamp(20px,6vw,56px)}
 .url-card{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.4rem;align-items:stretch;border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:.4rem .4rem .4rem .85rem;margin-bottom:1.4rem}
 .url-card .short-link{display:flex;align-items:center;min-width:0;font-family:var(--mono);font-size:.95rem;color:var(--text);text-decoration:none;word-break:break-all;line-height:1.35;padding:.3rem 0}
 @media(hover:hover){.url-card .short-link:hover{opacity:.75}}
-.url-card .btn{min-height:36px;padding:0 .9rem;font-size:.85rem;white-space:nowrap}
+.url-card .btn{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:36px;padding:0 .9rem;font-size:.85rem;line-height:1;white-space:nowrap}
 @media(max-width:520px){.url-card{grid-template-columns:1fr 1fr;padding:.6rem}.url-card .short-link{grid-column:1/-1;padding:.4rem .25rem .35rem}.url-card .btn{justify-content:center}}
 .edit-block{margin:0 0 1.4rem;text-align:center}
 .edit-block .edit-btn{width:100%;min-height:44px;font-size:.9rem;background:var(--surface)}
